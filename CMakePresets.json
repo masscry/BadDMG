@@ -1,0 +1,48 @@
+{
+  "version": 4,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 22,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "ninja-multi",
+      "generator": "Ninja Multi-Config",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "description": "Ninja Multi-Config (Debug/Release/RelWithDebInfo)",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "debug",
+      "configurePreset": "ninja-multi",
+      "configuration": "Debug"
+    },
+    {
+      "name": "release",
+      "configurePreset": "ninja-multi",
+      "configuration": "Release"
+    },
+    {
+      "name": "relwithdebinfo",
+      "configurePreset": "ninja-multi",
+      "configuration": "RelWithDebInfo"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "debug",
+      "configurePreset": "ninja-multi",
+      "configuration": "Debug"
+    },
+    {
+      "name": "release",
+      "configurePreset": "ninja-multi",
+      "configuration": "Release"
+    }
+  ]
+}
