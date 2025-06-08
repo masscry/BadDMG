@@ -60,12 +60,16 @@ cmake ..
 cmake --build .
 ```
 
-### Tested Configurations
+### Tested Configurations (Application builds and runs)
 
 The emulator has been tested on the following configurations:
 * Ubuntu 24.04
   * Clang 19.0
   * CMake 3.22
+  * SDL3
+* MacOS Sequoia 15.5 (Intel)
+  * AppleClang 17.0.0 (clang-1700.0.13.5) (Xcode 16.4)
+  * CMake 4.02
   * SDL3
 
 ## Usage
