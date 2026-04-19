@@ -15,7 +15,6 @@
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_render.h>
-#include <SDL3/SDL_surface.h>
 
 #include <argparse/argparse.hpp>
 
@@ -24,6 +23,8 @@
 #include <fstream>
 
 namespace bdmg {
+
+using namespace std::chrono_literals;
 
 constexpr s32 screen_scale = 3;
 
@@ -56,39 +57,37 @@ struct Options {
 Application::Application(int argc, char* argv[]) {
     auto options = Options(argc, argv);
 
-    _window = SDL_CreateWindow(
+    _window.reset(SDL_CreateWindow(
         std::format("{} v{}", app_name, app_version).c_str(),
         screen_size.x*screen_scale,
         screen_size.y*screen_scale,
         SDL_WINDOW_HIGH_PIXEL_DENSITY
-    );
-    if (_window == nullptr) {
+    ));
+    if (!_window) {
         throw SDLError();
     }
 
-    _renderer = SDL_CreateRenderer(_window, nullptr);
-    if (_renderer == nullptr) {
+    _renderer.reset(SDL_CreateRenderer(_window.get(), nullptr));
+    if (!_renderer) {
         throw SDLError();
     }
-    call_check(SDL_SetRenderVSync, _renderer, 1);
+    call_check(SDL_SetRenderVSync, _renderer.get(), 1);
 
     call_check(SDL_SetRenderLogicalPresentation,
-        _renderer,
+        _renderer.get(),
         screen_size.x, screen_size.y,
         SDL_LOGICAL_PRESENTATION_INTEGER_SCALE
     );
 
-    _tex = SDL_CreateTexture(
-        _renderer, 
+    _tex.reset(SDL_CreateTexture(
+        _renderer.get(), 
         SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
         screen_size.x, screen_size.y
-    );
-    call_check(SDL_SetTextureScaleMode, _tex, SDL_SCALEMODE_NEAREST);
-
-
+    ));
     if (!_tex) {
         throw SDLError();
     }
+    call_check(SDL_SetTextureScaleMode, _tex.get(), SDL_SCALEMODE_NEAREST);
 
     auto cartridge = Cartridge::create(options.cartridge);
     cartridge->print_info(std::cerr);
@@ -113,7 +112,7 @@ Application::Application(int argc, char* argv[]) {
     _bus->register_device(joypad_range, _joypad);
     _bus->register_device(serial_range, bdmg::Serial::create());
 
-    auto timer = bdmg::Timer::create();
+    auto timer = bdmg::TimerImpl::create();
     _bus->register_device(timer_range, timer);
 
     auto interrupt = bdmg::Interrupt::create();
@@ -129,10 +128,7 @@ Application::Application(int argc, char* argv[]) {
     timer->advance(*_bus, 0x8);
 }
 
-Application::~Application() {
-    SDL_DestroyRenderer(_renderer);
-    SDL_DestroyWindow(_window);
-}
+Application::~Application() = default;
 
 void Application::update_frame(PixelProcessor::FrameSpan fb) {
     constexpr u32 color_mapping[4] = {
@@ -160,31 +156,40 @@ void Application::update_frame(PixelProcessor::FrameSpan fb) {
 }
 
 void Application::idle() {
-    _counter.update();
-    auto fps_title = std::format("FPS: {:4.2}", _counter.get());
-    call_check(SDL_SetWindowTitle, _window, fps_title.c_str());
-
+    SDL_Event event{};
+    while(SDL_PollEvent(&event)) {
+        push_event(&event);
+    }
+    if (_frame_ready) {
+        constexpr auto frame_time = std::chrono::nanoseconds(1'000'000'000 / 60);
+        auto now = SDL_GetTicksNS();
+        if (now - _last_frame_ready > frame_time.count()) {
+            _last_frame_ready = now;
     _frame_ready = false;
+        }
+        return;
+    }
     while (!_frame_ready) {
         _cpu.step();
     }
+    _counter.update();
+    auto fps_title = std::format("FPS: {:4.2}", _counter.get());
+    call_check(SDL_SetWindowTitle, _window.get(), fps_title.c_str());
 
-    call_check(SDL_SetRenderDrawColor, _renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
-    call_check(SDL_RenderClear, _renderer);
-    call_check(SDL_UpdateTexture, _tex, nullptr, _frame.data(), screen_size.x * sizeof(u32));
-    call_check(SDL_RenderTexture, _renderer, _tex, nullptr, nullptr);
-    call_check(SDL_RenderPresent, _renderer);
+    call_check(SDL_SetRenderDrawColor, _renderer.get(), 0, 0, 0, SDL_ALPHA_OPAQUE);
+    call_check(SDL_RenderClear, _renderer.get());
+    call_check(SDL_UpdateTexture, _tex.get(), nullptr, _frame.data(), screen_size.x * sizeof(u32));
+    call_check(SDL_RenderTexture, _renderer.get(), _tex.get(), nullptr, nullptr);
+    call_check(SDL_RenderPresent, _renderer.get());
 }
 
 void Application::push_event(const SDL_Event* event) {
     if (event->type == SDL_EVENT_QUIT) {
         throw Application::Exit{};
     }
-
     if (event->type == SDL_EVENT_KEY_DOWN && event->key.key == SDLK_F12) {
         _make_screenshot = true;
     }
-
     if (event->type == SDL_EVENT_KEY_DOWN || event->type == SDL_EVENT_KEY_UP) {
         bool pressed = event->type == SDL_EVENT_KEY_DOWN;
         switch (event->key.key) {

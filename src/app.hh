@@ -5,14 +5,9 @@
 #include <bdmg/joypad.hh>
 
 #include "fps-counter.hh"
-
-union SDL_Event;
-struct SDL_Window;
-struct SDL_Renderer;
-struct SDL_Texture;
+#include "sdl.hh"
 
 namespace bdmg {
-
 
 class Application {
 public:
@@ -40,9 +35,9 @@ private:
     bool _select = false;
     bool _start = false;
 
-    SDL_Window* _window = nullptr;
-    SDL_Renderer* _renderer = nullptr;
-    SDL_Texture* _tex = nullptr;
+    Window _window;
+    Renderer _renderer;
+    Texture _tex;
 
     bdmg::Cpu _cpu;
     bdmg::SPBus _bus;
@@ -51,9 +46,11 @@ private:
 
     FpsCounter _counter;
     std::vector<u32> _frame {}; 
-    bool _frame_ready = false;
+    u64 _last_frame_ready = 0;
 
+    bool _frame_ready = false;
     bool _make_screenshot = false;
+
 };
 
 } // namespace bdmg

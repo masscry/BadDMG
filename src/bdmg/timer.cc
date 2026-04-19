@@ -4,11 +4,11 @@
 
 namespace bdmg {
 
-Timer::Timer(OnlySharedPtr) 
+TimerImpl::TimerImpl(OnlySharedPtr) 
     : _div(0), _tima(0), _tma(0), _tac(0), _reload_cycles(0) {}
 
-SPTimer Timer::create() {
-    return std::make_shared<Timer>(OnlySharedPtr{});
+SPTimer TimerImpl::create() {
+    return std::make_shared<TimerImpl>(OnlySharedPtr{});
 }
 
 constexpr auto div_addr = RangeU16{ 0xFF04, 1 };
@@ -16,7 +16,7 @@ constexpr auto tima_addr = RangeU16{ 0xFF05, 1 };
 constexpr auto tma_addr = RangeU16{ 0xFF06, 1 };
 constexpr auto tac_addr = RangeU16{ 0xFF07, 1 };
 
-u8 Timer::read_byte(u16 addr) const {
+u8 TimerImpl::read_byte(u16 addr) const {
     switch(addr) {
     case div_addr.start: return _div >> 8;
     case tima_addr.start: return _tima;
@@ -26,7 +26,7 @@ u8 Timer::read_byte(u16 addr) const {
     }
 }
 
-void Timer::write_byte(u16 addr, u8 value) {
+void TimerImpl::write_byte(u16 addr, u8 value) {
     switch(addr) {
     case div_addr.start:
         _div = 0;
@@ -45,7 +45,7 @@ void Timer::write_byte(u16 addr, u8 value) {
     }
 }
 
-void Timer::advance(Bus& bus, u8 cycles) {
+void TimerImpl::advance(Bus& bus, u8 cycles) {
     if (_reload_cycles > 0) {
         if (cycles >= _reload_cycles) {
             _tima = _tma;
