@@ -4,8 +4,8 @@ add_executable(BadDMG)
 
 target_sources(BadDMG
     PRIVATE
-        sdl-main.cc
         app.cc
+        sdl-main.cc
         sdl.cc
 )
 

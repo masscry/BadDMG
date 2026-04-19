@@ -20,6 +20,7 @@ void add_last_words(std::string_view message) {
     }
 }
 
+[[noreturn]]
 void panic(std::string_view message, const std::source_location location) noexcept {
     if (!last_words.empty()) {
         std::cerr << "LAST WORDS:" << std::endl;
@@ -27,8 +28,8 @@ void panic(std::string_view message, const std::source_location location) noexce
     for (const auto& line: last_words) {
         std::cerr << '\t' << line << "\n";
     }
-    std::cerr << "PANIC at " << location.file_name() << ":" << location.line() << " in function "
-              << location.function_name() << " - \n" << message << "\n";
+    std::cerr << std::format("PANIC at {}:{} in function {} - {}\n",
+        location.file_name(), location.line(), location.function_name(), message);
     std::cerr.flush();
     std::abort();
 }

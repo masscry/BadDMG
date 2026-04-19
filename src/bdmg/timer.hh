@@ -7,15 +7,15 @@ namespace bdmg {
 
 class Bus;
 
-using SPTimer = std::shared_ptr<class Timer>;
+using SPTimer = std::shared_ptr<class TimerImpl>;
 
 constexpr RangeU16 timer_range { 0xFF04, 4 };
 
-class Timer: public ITickingDevice {
+class TimerImpl: public ITickingDevice {
 protected:
     struct OnlySharedPtr { explicit OnlySharedPtr() = default; };
 public:
-    explicit Timer(OnlySharedPtr);
+    explicit TimerImpl(OnlySharedPtr);
     static SPTimer create();
 
     u8 read_byte(u16 addr) const override;

@@ -21,6 +21,8 @@ using s64 = std::int64_t;
 using f32 = float;
 using f64 = double;
 
+constexpr u64 dmg_cpu_speed = 1 << 22;
+
 template<typename Data>
 struct Vec2 {
     Data x;
@@ -31,6 +33,10 @@ template<typename Data>
 struct Range {
     Data start;
     Data length;
+
+    constexpr Data end() const {
+        return start + length;
+    }
 
     friend constexpr 
     bool operator < (const Range<Data>& lhs, const Range<Data>& rhs) {
