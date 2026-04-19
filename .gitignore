@@ -5,3 +5,4 @@ share/
 compile_commands.json
 *.pgm
 *.png
+.DS_Store
