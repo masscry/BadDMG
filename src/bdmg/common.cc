@@ -1,6 +1,7 @@
 #include "common.hh"
 
 #include <deque>
+#include <format>
 #include <iostream>
 
 namespace bdmg {
