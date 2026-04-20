@@ -31,6 +31,15 @@ jobs:
       run: |
         echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
 
+    - name: Install Linux Dependencies
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libx11-dev libxext-dev libxcursor-dev libxinerama-dev libxi-dev \
+          libxrandr-dev libxss-dev libxtst-dev libwayland-dev \
+          libxkbcommon-dev libdrm-dev libgbm-dev libasound2-dev libpulse-dev
+
     - name: Configure
       run: >
         cmake -B ${{ steps.strings.outputs.build-output-dir }}
