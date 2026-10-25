@@ -10,6 +10,7 @@ A GameBoy (DMG) emulator with cycle-accurate CPU emulation and SDL3 frontend.
 - Good-enough PPU emulation
 - MBC1 cartridge support
 - Optional boot ROM support
+- 4-channel APU with resampled SDL3 audio output
 - SDL3 based UI
 
 ## Project Structure and Architecture
@@ -26,6 +27,7 @@ The project is organized into several directories and modules:
     - **boot-rom.hh / boot-rom.cc**: Implements the `BootRom` class, which loads the GameBoy (optional) boot ROM and exposes it as a device.
     - **joypad.hh / joypad.cc**: Implements the `Joypad` class, which handles user input and exposes the joypad state as a device on the Bus.
     - **timer.hh / timer.cc**: Implements the `Timer` class, which emulates the GameBoy's timer hardware and is a ticking device.
+    - **audio.hh / audio.cc**: Implements the `Audio` class (APU), which emulates the four sound channels, the frame sequencer and the mixer, resamples the output to 48 kHz and is a ticking device.
     - **serial.hh / serial.cc**: Implements the `Serial` class, which emulates the serial port and is a ticking device (dummy for now).
     - **work-ram.hh / high-ram.hh**: Implements RAM devices for the GameBoy's memory map.
     - **device.hh**: Defines the `IDevice` and `ITickingDevice` interfaces, which all hardware components implement. Devices are registered with the Bus and can be advanced if they are ticking devices.
@@ -36,7 +38,7 @@ The project is organized into several directories and modules:
 **Device Registration and Memory Map:**
 - Devices are registered to the Bus at specific address ranges (e.g., ROM, RAM, VRAM, OAM, I/O, etc.).
 - The Bus maintains a mapping from address to device, and all reads/writes are routed to the correct device.
-- Ticking devices (PPU, Timer, Serial) are advanced by the Bus each emulation step.
+- Ticking devices (PPU, Timer, Audio, Serial) are advanced by the Bus each emulation step.
 
 **Emulation Loop and Data Flow:**
 - The Application runs the main loop, polling SDL events and updating the window.
@@ -108,6 +110,6 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Roadmap
 
- - [ ] Implement sound emulation
+ - [x] Implement sound emulation
  - [ ] Add SRAM saving option
  - [ ] Add support for more common MBC types (MBC3, MBC5, etc...)

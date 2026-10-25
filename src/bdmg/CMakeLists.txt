@@ -22,3 +22,8 @@ target_include_directories(bdmg
     INTERFACE
         ${CMAKE_SOURCE_DIR}/src
 )
+
+target_link_libraries(bdmg
+    PUBLIC
+        bdmg::rsmp
+)
