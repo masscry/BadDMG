@@ -1669,7 +1669,7 @@ void Cpu::mode_cb() {
     std::invoke(CpuInstrTable::cb_map[opcode], this);
 }
 
-void Cpu::step() {
+u64 Cpu::step() {
     _cycle_count = 0;
 
     if (_halted) {
@@ -1677,7 +1677,7 @@ void Cpu::step() {
             _halted = false;
         } else {
             _cycle_count += _bus->advance();
-            return;
+            return _cycle_count;
         }
     }
 
@@ -1686,12 +1686,12 @@ void Cpu::step() {
             _stopped = false;
         } else {
             _cycle_count += _bus->advance();
-            return;
+            return _cycle_count;
         }
     }
 
     if(check_interrupts()) {
-        return;
+        return _cycle_count;
     }
 
     auto opcode = fetch8();
@@ -1705,6 +1705,7 @@ void Cpu::step() {
     }
 
     _just_wrote_if = false;
+    return _cycle_count;
 }
 
 } // namespace bdmg
