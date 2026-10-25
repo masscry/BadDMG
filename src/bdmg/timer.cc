@@ -30,6 +30,9 @@ void TimerImpl::write_byte(u16 addr, u8 value) {
     switch(addr) {
     case div_addr.start:
         _div = 0;
+        if (_handler) {
+            _handler->fire();
+        }
         break;
     case tima_addr.start:
         if (_reload_cycles == 0){
