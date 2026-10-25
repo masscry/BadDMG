@@ -81,6 +81,17 @@ Cartridge::Cartridge(std::span<const u8> data, OnlySharedPtr)
         _rom_size = 0x8000;
     }
     _ram_size = calculate_ram_size(_memory[ram_size_range.start]);
+    switch (_type) {
+    case Type::mbc1_ram:
+    case Type::mbc1_ram_bat:
+        // Some cartridge headers are broken, we can't trust them
+        if (_ram_size == 0) {
+            _ram_size = 8_KB;
+        }
+        break;
+    default:
+        break;
+    }
     if (_ram_size > 0) {
         _ram.resize(_ram_size);
     }
