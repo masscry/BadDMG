@@ -7,6 +7,7 @@ target_sources(BadDMG
         app.cc
         sdl-main.cc
         sdl.cc
+        wav.cc
 )
 
 target_link_libraries(BadDMG 

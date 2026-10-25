@@ -1,5 +1,6 @@
 #include "app.hh"
 #include "sdl.hh"
+#include "wav.hh"
 
 #include <bdmg/common.hh>
 #include <bdmg/boot-rom.hh>
@@ -25,6 +26,7 @@
 #include <format>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <string>
 
 namespace bdmg {
@@ -57,6 +59,7 @@ constexpr u64 stall_grace_frames = 2;
 struct Options {
     std::string boot_rom;
     std::string cartridge;
+    std::string record_wav;
 
     Options(int argc, char* argv[]) {
         argparse::ArgumentParser program(app_name, app_version);
@@ -68,10 +71,16 @@ struct Options {
         program
             .add_argument("-b", "--boot-rom")
             .help("boot code ROM file");
+        program
+            .add_argument("--record-wav")
+            .help("record audio to a WAV file (48 kHz stereo F32)");
 
         program.parse_args(argc, argv);
         if (program.is_used("--boot-rom")) {
             boot_rom = program.get("--boot-rom");
+        }
+        if (program.is_used("--record-wav")) {
+            record_wav = program.get("--record-wav");
         }
         cartridge = program.get("--cartridge");
     }
@@ -82,6 +91,11 @@ Application::Application(int argc, char* argv[]) {
 
     const auto frames_hint = std::to_string(device_audio_frames);
     SDL_SetHint(SDL_HINT_AUDIO_DEVICE_SAMPLE_FRAMES, frames_hint.c_str());
+
+    if (!options.record_wav.empty()) {
+        _wav = std::make_unique<WavWriter>();
+        _wav->open(options.record_wav, audio_freq);
+    }
 
     _window.reset(SDL_CreateWindow(
         std::format("{} v{}", app_name, app_version).c_str(),
@@ -151,6 +165,9 @@ Application::Application(int argc, char* argv[]) {
     _audio = bdmg::Audio::create(resample_speed);
     _audio->set_sample_callback([this](const bdmg::AudioSample& sample) {
         _audio_samples.push_back(sample);
+        if (_wav) {
+            _wav->push(sample);
+        }
         if (_audio_samples.size() >= audio_push_chunk) {
             push_audio();
         }

@@ -85,6 +85,7 @@ Run the emulator with:
 ### Options
 - `-b, --boot-rom`: Path to boot ROM (optional)
 - `-c, --cartridge`: Path to game ROM (required)
+- `--record-wav`: Record audio to a WAV file (48 kHz stereo F32)
 
 ### Controls
 - D-pad: Arrow keys
