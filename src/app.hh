@@ -7,6 +7,7 @@
 
 #include "fps-counter.hh"
 #include "sdl.hh"
+#include "wav.hh"
 
 #include <memory>
 #include <span>
@@ -60,6 +61,7 @@ private:
     std::vector<bdmg::AudioSample> _audio_samples;
     std::vector<f32> _device_samples;
     bool _audio_started = false;
+    std::unique_ptr<bdmg::WavWriter> _wav;
 
     bool _frame_ready = false;
     bool _make_screenshot = false;
