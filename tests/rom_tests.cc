@@ -274,7 +274,8 @@ std::string debug_state(const RomMachine& machine) {
     };
     const u16 pc = machine.cpu.regs().pc;
     std::string code;
-    for (u16 addr = pc - 8; addr < pc + 40; ++addr) {
+    for (int offset = -8; offset < 40; ++offset) {
+        const auto addr = static_cast<u16>(pc + offset);
         code += std::format("${:02X} ", machine.bus->read_byte(addr));
     }
     return std::format(
