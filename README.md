@@ -53,6 +53,7 @@ Required dependencies:
 - Git (for dependencies)
 - SDL3 (auto-fetched)
 - argparse (auto-fetched)
+- r8brain (auto-fetched, audio resampling)
 
 ```bash
 mkdir build && cd build
