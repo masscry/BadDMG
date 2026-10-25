@@ -63,6 +63,10 @@ cmake ..
 cmake --build .
 ```
 
+The test suite (GoogleTest and the Blargg test ROMs, both auto-fetched)
+is built by default; configure with `-DBDMG_BUILD_TESTS=OFF` to skip it,
+and run it with `ctest --output-on-failure`.
+
 ### Tested Configurations (Application builds and runs)
 
 The emulator has been tested on the following configurations:
