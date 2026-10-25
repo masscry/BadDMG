@@ -52,7 +52,7 @@ public:
 
     std::string print_state();
 
-    void step();
+    u64 step();
 
     RegisterFile& regs() {
         return _regs;
