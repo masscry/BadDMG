@@ -157,6 +157,13 @@ void Cpu::cp_a_src() {
               ((res > 0xFF) * Alu::carry);
 }
 
+u8 Cpu::fetch8() {
+    bool do_inc = !std::exchange(_halt_bug_skip_pc_increment, false);
+    u8 value = read_byte(_regs.pc);
+    _regs.pc += do_inc;
+    return value;
+}
+
 u8 Cpu::imm8() {
     return read_byte(_regs.pc++);
 }
@@ -815,14 +822,11 @@ void Cpu::stop() {
 }
 
 void Cpu::halt() {
-    if (_interrupts_enable) {
-        _halted = true;
-    } else {
-        if (pending_interrupts()) {
-            _regs.pc--;
-        }
-        _halted = !pending_interrupts();
-    }
+    bool ie = _interrupts_enable;
+    bool pending = pending_interrupts();
+
+    _halted = ie || !pending;
+    _halt_bug_skip_pc_increment = _halt_bug_skip_pc_increment || (!ie && pending);
 }
 
 void Cpu::daa() {
@@ -1690,7 +1694,7 @@ void Cpu::step() {
         return;
     }
 
-    auto opcode = imm8();
+    auto opcode = fetch8();
     std::invoke(CpuInstrTable::base[opcode], this);
 
     if (_ime_delay > 0) {
