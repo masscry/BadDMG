@@ -286,6 +286,8 @@ private:
 
     void push_sp_word(u16 data);
 
+    u8 fetch8();
+
     u8 imm8();
     u16 imm16();
 
@@ -303,6 +305,7 @@ private:
     bool _stopped = false;
     bool _halted = false;
     bool _just_wrote_if = false;
+    bool _halt_bug_skip_pc_increment = false;
 
     decltype(&Cpu::read_boot_byte) _read_byte = &Cpu::read_boot_byte;
     decltype(&Cpu::write_boot_byte) _write_byte = &Cpu::write_boot_byte;
