@@ -34,7 +34,7 @@ namespace bdmg {
 constexpr s32 screen_scale = 3;
 
 constexpr auto app_name = "BadDMG";
-constexpr auto app_version = "0.1";
+constexpr auto app_version = "0.2";
 constexpr auto audio_freq = default_audio_sample_rate;
 
 constexpr int device_audio_frames = 256;
