@@ -3,9 +3,14 @@
 #include <bdmg/bus.hh>
 #include <bdmg/cpu.hh>
 #include <bdmg/joypad.hh>
+#include <bdmg/audio.hh>
 
 #include "fps-counter.hh"
 #include "sdl.hh"
+
+#include <memory>
+#include <span>
+#include <vector>
 
 namespace bdmg {
 
@@ -25,6 +30,7 @@ public:
 
 private:
     void update_frame(std::span<const u8, screen_size.x * screen_size.y>);
+    void push_audio();
 
     bool _up = false;
     bool _down = false;
@@ -38,15 +44,22 @@ private:
     Window _window;
     Renderer _renderer;
     Texture _tex;
+    AudioStream _audio_stream;
 
     bdmg::Cpu _cpu;
     bdmg::SPBus _bus;
     bdmg::SPPixelProcessor _pp;
     bdmg::SPJoypad _joypad;
+    bdmg::SPAudio _audio;
 
     FpsCounter _counter;
-    std::vector<u32> _frame {}; 
+    std::vector<u32> _frame {};
     u64 _last_frame_ready = 0;
+    u64 _cycles_since_frame = 0;
+
+    std::vector<bdmg::AudioSample> _audio_samples;
+    std::vector<f32> _device_samples;
+    bool _audio_started = false;
 
     bool _frame_ready = false;
     bool _make_screenshot = false;
