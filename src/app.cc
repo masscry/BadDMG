@@ -18,18 +18,41 @@
 
 #include <argparse/argparse.hpp>
 
+#include <algorithm>
+#include <chrono>
+#include <cstddef>
+#include <ctime>
 #include <format>
-#include <iostream>
 #include <fstream>
+#include <iostream>
+#include <string>
 
 namespace bdmg {
-
-using namespace std::chrono_literals;
 
 constexpr s32 screen_scale = 3;
 
 constexpr auto app_name = "BadDMG";
 constexpr auto app_version = "0.1";
+constexpr auto audio_freq = default_audio_sample_rate;
+
+constexpr int device_audio_frames = 256;
+
+constexpr u64 frame_lines = 154;
+constexpr u64 line_cycles = 456;
+constexpr u64 frame_cycles = frame_lines * line_cycles;
+constexpr f64 console_rate = static_cast<f64>(dmg_cpu_speed) / static_cast<f64>(frame_cycles);
+constexpr u64 ns_per_second = 1'000'000'000;
+constexpr u64 target_fps = 60;
+constexpr f64 resample_speed = static_cast<f64>(target_fps) / console_rate;
+constexpr auto frame_time = std::chrono::nanoseconds(static_cast<s64>(ns_per_second / target_fps));
+constexpr u64 samples_per_frame = audio_freq / target_fps;
+
+constexpr u64 audio_prebuffer = device_audio_frames + samples_per_frame;
+constexpr u64 audio_push_chunk = 256;
+constexpr u64 max_queued_frames = 20;
+constexpr u64 max_audio_queued = samples_per_frame * max_queued_frames;   // 0.33 s
+constexpr u64 max_audio_pause_ns = 20'000'000;   // 20 ms
+constexpr u64 stall_grace_frames = 2;
 
 struct Options {
     std::string boot_rom;
@@ -57,6 +80,9 @@ struct Options {
 Application::Application(int argc, char* argv[]) {
     auto options = Options(argc, argv);
 
+    const auto frames_hint = std::to_string(device_audio_frames);
+    SDL_SetHint(SDL_HINT_AUDIO_DEVICE_SAMPLE_FRAMES, frames_hint.c_str());
+
     _window.reset(SDL_CreateWindow(
         std::format("{} v{}", app_name, app_version).c_str(),
         screen_size.x*screen_scale,
@@ -78,6 +104,23 @@ Application::Application(int argc, char* argv[]) {
         screen_size.x, screen_size.y,
         SDL_LOGICAL_PRESENTATION_INTEGER_SCALE
     );
+
+    SDL_AudioSpec spec {
+        .format = SDL_AUDIO_F32,
+        .channels = 2,
+        .freq = audio_freq
+    };
+
+    _audio_stream.reset(SDL_OpenAudioDeviceStream(
+        SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
+        &spec,
+        nullptr,
+        nullptr
+    ));
+    if (!_audio_stream) {
+        throw SDLError();
+    }
+    call_check(SDL_ResumeAudioStreamDevice, _audio_stream.get());
 
     _tex.reset(SDL_CreateTexture(
         _renderer.get(), 
@@ -105,7 +148,20 @@ Application::Application(int argc, char* argv[]) {
     _bus->register_device(lcd_range, _pp);
     _bus->register_device(oam_range, _pp);
 
-    _bus->register_device(audio_range, bdmg::Audio::create());
+    _audio = bdmg::Audio::create(resample_speed);
+    _audio->set_sample_callback([this](const bdmg::AudioSample& sample) {
+        _audio_samples.push_back(sample);
+        if (_audio_samples.size() >= audio_push_chunk) {
+            push_audio();
+        }
+    });
+    _bus->register_device(audio_chan1, _audio);
+    _bus->register_device(audio_chan2, _audio);
+    _bus->register_device(audio_chan3, _audio);
+    _bus->register_device(audio_chan4, _audio);
+    _bus->register_device(audio_control, _audio);
+    _bus->register_device(audio_waves, _audio);
+
     _bus->register_device(high_ram_range, bdmg::HighRam::create());
 
     _joypad = bdmg::Joypad::create();
@@ -113,6 +169,9 @@ Application::Application(int argc, char* argv[]) {
     _bus->register_device(serial_range, bdmg::Serial::create());
 
     auto timer = bdmg::TimerImpl::create();
+    timer->set_div_reset(bdmg::make_div_reset_handler(
+        [audio = _audio]() { audio->reset_sequencer(); }
+    ));
     _bus->register_device(timer_range, timer);
 
     auto interrupt = bdmg::Interrupt::create();
@@ -137,6 +196,7 @@ void Application::update_frame(PixelProcessor::FrameSpan fb) {
         0xFF555555,
         0xFF000000
     };
+    _cycles_since_frame = 0;
     auto dst = _frame.data();
     for (auto src: fb) {
         *dst++ = color_mapping[src & 0x03];
@@ -160,18 +220,20 @@ void Application::idle() {
     while(SDL_PollEvent(&event)) {
         push_event(&event);
     }
+
     if (_frame_ready) {
-        constexpr auto frame_time = std::chrono::nanoseconds(1'000'000'000 / 60);
         auto now = SDL_GetTicksNS();
-        if (now - _last_frame_ready > frame_time.count()) {
+        if (now - _last_frame_ready > static_cast<u64>(frame_time.count())) {
             _last_frame_ready = now;
-    _frame_ready = false;
+            _frame_ready = false;
         }
         return;
     }
     while (!_frame_ready) {
-        _cpu.step();
+        _cycles_since_frame += _cpu.step();
     }
+    push_audio();
+
     _counter.update();
     auto fps_title = std::format("FPS: {:4.2}", _counter.get());
     call_check(SDL_SetWindowTitle, _window.get(), fps_title.c_str());
@@ -181,6 +243,52 @@ void Application::idle() {
     call_check(SDL_UpdateTexture, _tex.get(), nullptr, _frame.data(), screen_size.x * sizeof(u32));
     call_check(SDL_RenderTexture, _renderer.get(), _tex.get(), nullptr, nullptr);
     call_check(SDL_RenderPresent, _renderer.get());
+}
+
+void Application::push_audio() {
+    if (!_audio_stream || _audio_samples.empty()) {
+        return;
+    }
+    constexpr auto device_frame_bytes = static_cast<int>(2 * sizeof(f32));
+    static_assert(device_frame_bytes == 2 * 4, "the SDL stream above is declared as F32 stereo");
+
+    const auto queued = static_cast<u64>(
+        SDL_GetAudioStreamQueued(_audio_stream.get()) / device_frame_bytes);
+
+    const bool frames_stalled = _cycles_since_frame > stall_grace_frames * frame_cycles;
+    const auto backlog = queued + _audio_samples.size();
+    if (frames_stalled && backlog > audio_prebuffer) {
+        const auto excess_ns = (backlog - audio_prebuffer) * ns_per_second / audio_freq;
+        SDL_DelayNS(std::min<u64>(excess_ns, max_audio_pause_ns));
+    }
+
+    if (!_audio_started) {
+        if (_audio_samples.size() < audio_prebuffer) {
+            return;
+        }
+        _audio_started = true;
+    }
+
+    if (queued >= max_audio_queued) {
+        _audio_samples.clear();
+        return;
+    }
+
+    const auto send = std::min<u64>(_audio_samples.size(), max_audio_queued - queued);
+
+    _device_samples.resize(send * 2);
+    for (std::size_t i = 0; i < send; ++i) {
+        _device_samples[2 * i] = static_cast<f32>(_audio_samples[i].left);
+        _device_samples[2 * i + 1] = static_cast<f32>(_audio_samples[i].right);
+    }
+
+    call_check(SDL_PutAudioStreamData, _audio_stream.get(),
+    _device_samples.data(), static_cast<int>(send * device_frame_bytes));
+    _audio_samples.erase(
+    _audio_samples.begin(),
+    _audio_samples.begin() + static_cast<std::ptrdiff_t>(send)
+);
+
 }
 
 void Application::push_event(const SDL_Event* event) {

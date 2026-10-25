@@ -22,6 +22,10 @@ void ResourceDestructor::operator()(SDL_Texture* texture) {
     SDL_DestroyTexture(texture);
 }
 
+void ResourceDestructor::operator()(SDL_AudioStream* stream) {
+    SDL_DestroyAudioStream(stream);
+}
+
 ITimer::ITimer(std::chrono::nanoseconds timeout) {
     auto callback = [](void *userdata, SDL_TimerID, Uint64 interval){
         auto& self = *static_cast<ITimer*>(userdata);
