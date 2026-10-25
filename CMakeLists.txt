@@ -12,7 +12,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED On)
 
 add_subdirectory(deps)
 
-add_compile_options(-Wall -Wextra -Werror)
+set(BDMG_COMPILE_OPTIONS -Wall -Wextra -Werror)
 
 option(
     BDMG_BUILD_TESTS

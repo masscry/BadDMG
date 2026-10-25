@@ -76,6 +76,10 @@ function(bdmg_embed_roms src_dir out_dir roms_var out_sources_var)
 endfunction()
 
 add_executable(rom_test)
+target_compile_options(rom_test
+    PRIVATE
+        ${BDMG_COMPILE_OPTIONS}
+)
 target_sources(rom_test
     PRIVATE
         rom_tests.cc

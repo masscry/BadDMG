@@ -23,6 +23,11 @@ target_include_directories(bdmg
         ${CMAKE_SOURCE_DIR}/src
 )
 
+target_compile_options(bdmg
+    PRIVATE
+        ${BDMG_COMPILE_OPTIONS}
+)
+
 target_link_libraries(bdmg
     PUBLIC
         bdmg::rsmp

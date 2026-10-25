@@ -10,6 +10,11 @@ target_sources(BadDMG
         wav.cc
 )
 
+target_compile_options(BadDMG
+    PRIVATE
+        ${BDMG_COMPILE_OPTIONS}
+)
+
 target_link_libraries(BadDMG 
     PRIVATE
         bdmg::bdmg
