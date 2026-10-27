@@ -104,6 +104,7 @@ Screenshots are saved as PGM files with timestamp in the current directory.
 ## Additional Resources
 
 - [Building a GameBoy Emulator: BadDMG Project Overview](https://habr.com/ru/articles/908752/) - Detailed article about the project's implementation (in Russian)
+- [Building an audio support for BadDMG](https://habr.com/ru/articles/1099784/) - Detailed article about audio subsystem implementation (in Russian)
 
 ## License
 
