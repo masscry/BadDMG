@@ -30,7 +30,6 @@
 #include <vector>
 
 namespace bdmg {
-namespace {
 
 constexpr u16 final_result_addr = 0xA000;
 constexpr u16 text_out_addr = 0xA004;
@@ -332,5 +331,35 @@ TEST_F(RomTests, mem_timing) { expect_pass(embedded_roms::mem_timing); }
 TEST_F(RomTests, DISABLED_interrupt_time) { expect_pass(embedded_roms::interrupt_time); }
 TEST_F(RomTests, DISABLED_oam_bug) { expect_pass(embedded_roms::oam_bug); }
 
-} // namespace
+TEST(PpuTiming, lyc_zero_match_fires_before_visible_line_zero) {
+    auto bus = Bus::create();
+    auto pp = PixelProcessor::create();
+    bus->register_device(lcd_range, pp);
+    auto interrupt = Interrupt::create();
+    bus->register_device({ int_flag_addr, 1 }, interrupt);
+    bus->register_device({ int_enable_addr, 1 }, interrupt);
+
+    bus->write_byte(reg_stat, 0x40);
+    bus->write_byte(reg_lyc, 0x00);
+    bus->write_byte(reg_lcdc, 0x91);
+
+    constexpr int max_advances = 2 * 70224 / 4;
+    int advances = 0;
+    while (bus->read_byte(reg_ly) != 152 && advances < max_advances) {
+        bus->advance();
+        ++advances;
+    }
+    ASSERT_LT(advances, max_advances);
+
+    bus->write_byte(int_flag_addr, 0x00);
+
+    while (!(bus->read_byte(int_flag_addr) & int_stat_bit) && advances < max_advances) {
+        bus->advance();
+        ++advances;
+    }
+    ASSERT_LT(advances, max_advances);
+    EXPECT_EQ(bus->read_byte(reg_ly), 0);
+    EXPECT_EQ(bus->read_byte(reg_stat) & 0x03, 1);
+}
+
 } // namespace bdmg
