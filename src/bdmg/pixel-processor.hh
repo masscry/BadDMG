@@ -114,6 +114,8 @@ private:
     int _window_line = -1;
 
     bool _vblank_triggered = false;
+    bool _vblank_wrapped = false;
+    bool _lyc_match = false;
     Mode _last_mode = Mode::h_blank;
 
     std::array<u8, oam_range.length> _oam;
