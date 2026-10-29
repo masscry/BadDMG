@@ -299,6 +299,8 @@ void PixelProcessor::advance(Bus& bus, u8 cycles) {
         _mode = Mode::h_blank;
         _regs.stat = (_regs.stat & ~mode_bits_mask) | static_cast<u8>(_mode);
         _vblank_triggered = false;
+        _vblank_wrapped = false;
+        _lyc_match = false;
         _last_mode = _mode;
         _oam_locked = false;
         _window_line = -1;
@@ -345,29 +347,35 @@ void PixelProcessor::advance(Bus& bus, u8 cycles) {
         case Mode::v_blank:
             if (_frame_cycles >= line_cycles) {
                 _frame_cycles -= line_cycles;
-                _regs.ly++;
-                
-                if (_regs.ly >= 154) {
-                    _regs.ly = 0;
+                if (_vblank_wrapped) {
+                    _vblank_wrapped = false;
                     _mode = Mode::oam_scan;
                     _vblank_triggered = false;
                     _window_line = -1;
                     if (_regs.stat & oam_int_enable) {
                         notify_stat_interrupt(bus);
                     }
+                } else {
+                    _regs.ly++;
+                    if (_regs.ly == 153) {
+                        _regs.ly = 0;
+                        _vblank_wrapped = true;
+                    }
                 }
             }
             break;
     }
 
-    if (_regs.ly == _regs.lyc) {
+    const bool lyc_match = _regs.ly == _regs.lyc;
+    if (lyc_match) {
         _regs.stat |= coincidence_flag;
-        if (_regs.stat & lyc_int_enable) {
+        if (!_lyc_match && (_regs.stat & lyc_int_enable)) {
             notify_stat_interrupt(bus);
         }
     } else {
         _regs.stat &= ~coincidence_flag;
     }
+    _lyc_match = lyc_match;
 
     _last_mode = _mode;
     _oam_locked = (_mode == Mode::oam_scan || _mode == Mode::draw);
