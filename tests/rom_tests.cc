@@ -16,7 +16,9 @@
 
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 #include <cstdlib>
+#include <filesystem>
 #include <format>
 #include <fstream>
 #include <ios>
@@ -330,6 +332,124 @@ TEST_F(RomTests, instr_timing) { expect_pass(embedded_roms::instr_timing); }
 TEST_F(RomTests, mem_timing) { expect_pass(embedded_roms::mem_timing); }
 TEST_F(RomTests, DISABLED_interrupt_time) { expect_pass(embedded_roms::interrupt_time); }
 TEST_F(RomTests, DISABLED_oam_bug) { expect_pass(embedded_roms::oam_bug); }
+
+namespace {
+
+fs::path make_test_rom(const fs::path& dir, Cartridge::Type type, u8 ram_code) {
+    auto path = dir / "game.gb";
+    std::vector<u8> rom(0x8000, 0xFF);
+    rom[0x147] = static_cast<u8>(type);
+    rom[0x149] = ram_code;
+    std::ofstream out(path, std::ios::binary);
+    out.write(reinterpret_cast<const char*>(rom.data()),
+              static_cast<std::streamsize>(rom.size()));
+    return path;
+}
+
+} // namespace
+
+TEST(CartridgeSave, battery_ram_is_live_mapped) {
+    const auto dir = fs::temp_directory_path() / "baddmg-cartridge-save-test";
+    fs::remove_all(dir);
+    fs::create_directories(dir);
+    const auto rom_path = make_test_rom(dir, Cartridge::Type::mbc1_ram_bat, 0x02);
+    const auto sav_path = dir / "game.sav";
+
+    const std::vector<u8> initial { 0x01, 0x02, 0x03 };
+    {
+        std::ofstream out(sav_path, std::ios::binary);
+        out.write(reinterpret_cast<const char*>(initial.data()),
+                  static_cast<std::streamsize>(initial.size()));
+    }
+
+    {
+        auto cartridge = Cartridge::create(rom_path);
+        cartridge->write_byte(0x0000, 0x0A);
+        EXPECT_EQ(cartridge->read_byte(0xA000), 0x01);
+        EXPECT_EQ(cartridge->read_byte(0xA001), 0x02);
+        EXPECT_EQ(cartridge->read_byte(0xA002), 0x03);
+        EXPECT_EQ(cartridge->read_byte(0xA003), 0x00);
+
+        cartridge->write_byte(0xA000, 0x42);
+
+        // The file is the live SRAM: the write is visible without exit.
+        std::ifstream live(sav_path, std::ios::binary);
+        char first = 0;
+        live.read(&first, 1);
+        EXPECT_EQ(static_cast<u8>(first), 0x42);
+    }
+
+    EXPECT_EQ(fs::file_size(sav_path), 8192ULL);
+    {
+        std::ifstream in(sav_path, std::ios::binary);
+        std::vector<u8> data(8192);
+        in.read(reinterpret_cast<char*>(data.data()),
+                static_cast<std::streamsize>(data.size()));
+        EXPECT_EQ(data[0], 0x42);
+        EXPECT_EQ(data[1], 0x02);
+        EXPECT_EQ(data[2], 0x03);
+        EXPECT_EQ(data[3], 0x00);
+    }
+
+    {
+        auto cartridge = Cartridge::create(rom_path);
+        cartridge->write_byte(0x0000, 0x0A);
+        EXPECT_EQ(cartridge->read_byte(0xA000), 0x42);
+        EXPECT_EQ(cartridge->read_byte(0xA001), 0x02);
+        EXPECT_EQ(cartridge->read_byte(0xA002), 0x03);
+    }
+
+    fs::remove_all(dir);
+}
+
+TEST(CartridgeRtc, persists_and_catches_up_while_closed) {
+    const auto dir = fs::temp_directory_path() / "baddmg-cartridge-rtc-test";
+    fs::remove_all(dir);
+    fs::create_directories(dir);
+    const auto rom_path = make_test_rom(dir, Cartridge::Type::mbc3_timer_ram_bat, 0x02);
+    const auto rtc_path = dir / "game.rtc";
+
+    auto now = std::chrono::system_clock::from_time_t(1'700'000'000);
+    MapperClock clock = [&now] { return now; };
+
+    {
+        auto cartridge = Cartridge::create(rom_path, clock);
+        cartridge->write_byte(0x0000, 0x0A);
+        cartridge->write_byte(0x4000, 0x0A);  // RTC hours
+        cartridge->write_byte(0xA000, 12);
+        cartridge->write_byte(0x4000, 0x09);  // RTC minutes
+        cartridge->write_byte(0xA000, 34);
+        cartridge->write_byte(0x4000, 0x08);  // RTC seconds
+        cartridge->write_byte(0xA000, 56);
+
+        cartridge->write_byte(0x6000, 0x00);
+        cartridge->write_byte(0x6000, 0x01);  // latch
+        cartridge->write_byte(0x4000, 0x0A);
+        EXPECT_EQ(cartridge->read_byte(0xA000), 12);
+        cartridge->write_byte(0x4000, 0x09);
+        EXPECT_EQ(cartridge->read_byte(0xA000), 34);
+        cartridge->write_byte(0x4000, 0x08);
+        EXPECT_EQ(cartridge->read_byte(0xA000), 56);
+    }
+    EXPECT_EQ(fs::file_size(rtc_path), 24ULL);
+
+    now += std::chrono::hours(1);
+
+    {
+        auto cartridge = Cartridge::create(rom_path, clock);
+        cartridge->write_byte(0x0000, 0x0A);
+        cartridge->write_byte(0x4000, 0x0A);
+        cartridge->write_byte(0x6000, 0x00);
+        cartridge->write_byte(0x6000, 0x01);  // latch
+        EXPECT_EQ(cartridge->read_byte(0xA000), 13);
+        cartridge->write_byte(0x4000, 0x09);
+        EXPECT_EQ(cartridge->read_byte(0xA000), 34);
+        cartridge->write_byte(0x4000, 0x08);
+        EXPECT_EQ(cartridge->read_byte(0xA000), 56);
+    }
+
+    fs::remove_all(dir);
+}
 
 TEST(PpuTiming, lyc_zero_match_fires_before_visible_line_zero) {
     auto bus = Bus::create();

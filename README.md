@@ -9,6 +9,8 @@ A GameBoy (DMG) emulator with cycle-accurate CPU emulation and SDL3 frontend.
 - Mostly cycle-accurate CPU emulation
 - Good-enough PPU emulation
 - MBC1, MBC2, MBC3 (with RTC) and MBC5 cartridge support
+- Battery-backed SRAM saved to a live memory-mapped `.sav` file
+- MBC3 real-time clock persisted in a `.rtc` file
 - Optional boot ROM support
 - 4-channel APU with resampled SDL3 audio output
 - SDL3 based UI
@@ -101,6 +103,9 @@ Run the emulator with:
 - Screenshot: F12
 
 Screenshots are saved as PGM files with timestamp in the current directory.
+Battery-backed cartridge RAM is saved to `<rom>.sav` next to the ROM, and MBC3
+clock state to `<rom>.rtc`. Saves are memory-mapped, so they update while the
+game runs and need no explicit save action.
 
 ## Additional Resources
 
@@ -118,5 +123,5 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## Roadmap
 
  - [x] Implement sound emulation
- - [ ] Add SRAM saving option
+ - [x] Add SRAM saving
  - [x] Add support for more common MBC types (MBC3, MBC5, etc...)

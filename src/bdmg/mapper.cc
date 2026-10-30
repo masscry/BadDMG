@@ -1,8 +1,28 @@
 #include "mapper.hh"
 
+#include <algorithm>
+#include <array>
+#include <cstring>
 #include <utility>
 
 namespace bdmg {
+
+namespace {
+
+constexpr auto rtc_magic = std::array<u8, 4>{ 'R', 'T', 'C', '1' };
+constexpr std::size_t rtc_timestamp_offset = 16;
+
+u64 load_u64(std::span<const u8> data) {
+    u64 value {};
+    std::memcpy(&value, data.data(), sizeof value);
+    return value;
+}
+
+void store_u64(std::span<u8> data, u64 value) {
+    std::memcpy(data.data(), &value, sizeof value);
+}
+
+} // namespace
 
 Mapper::Mapper(std::span<const u8> rom, std::span<u8> ram, u32 rom_size)
     : _rom(rom), _ram(ram), _rom_mask(rom_size - 1) {
@@ -100,10 +120,51 @@ void Mbc2::write(u16 addr, u8 data) {
     }
 }
 
-Mbc3::Mbc3(std::span<const u8> rom, std::span<u8> ram, u32 rom_size, MapperClock clock)
+Mbc3::Mbc3(std::span<const u8> rom, std::span<u8> ram, u32 rom_size, MapperClock clock,
+           std::span<u8> rtc_save)
     : Mapper(rom, ram, rom_size),
       _clock(std::move(clock)),
-      _anchor(_clock ? _clock() : std::chrono::system_clock::now()) {
+      _anchor(_clock ? _clock() : std::chrono::system_clock::now()),
+      _rtc_save(rtc_save) {
+    load_rtc();
+}
+
+void Mbc3::load_rtc() {
+    if (_rtc_save.size() < rtc_save_size) {
+        return;
+    }
+    if (std::equal(rtc_magic.begin(), rtc_magic.end(), _rtc_save.begin())) {
+        _live.sec = _rtc_save[4];
+        _live.min = _rtc_save[5];
+        _live.hour = _rtc_save[6];
+        _live.days = static_cast<u16>(
+            _rtc_save[7] | ((_rtc_save[8] & 0x04) << 6));
+        _live.halt = (_rtc_save[8] & 0x02) != 0;
+        _live.carry = (_rtc_save[8] & 0x01) != 0;
+        const auto saved_at = static_cast<std::time_t>(
+            load_u64(_rtc_save.subspan(rtc_timestamp_offset)));
+        _anchor = std::chrono::system_clock::from_time_t(saved_at);
+        sync();
+    }
+    persist();
+}
+
+void Mbc3::persist() {
+    if (_rtc_save.size() < rtc_save_size) {
+        return;
+    }
+    _rtc_save[4] = _live.sec;
+    _rtc_save[5] = _live.min;
+    _rtc_save[6] = _live.hour;
+    _rtc_save[7] = static_cast<u8>(_live.days & 0xFF);
+    _rtc_save[8] = static_cast<u8>(
+        (((_live.days >> 8) & 0x01) << 2) |
+        (_live.halt ? 0x02 : 0x00) |
+        (_live.carry ? 0x01 : 0x00));
+    const auto timestamp = static_cast<u64>(
+        std::chrono::system_clock::to_time_t(_anchor));
+    store_u64(_rtc_save.subspan(rtc_timestamp_offset), timestamp);
+    std::copy(rtc_magic.begin(), rtc_magic.end(), _rtc_save.begin());
 }
 
 auto Mbc3::now() const -> std::chrono::system_clock::time_point {
@@ -113,6 +174,7 @@ auto Mbc3::now() const -> std::chrono::system_clock::time_point {
 void Mbc3::sync() {
     if (_live.halt) {
         _anchor = now();
+        persist();
         return;
     }
 
@@ -138,6 +200,7 @@ void Mbc3::sync() {
         total &= 0x1FF;
     }
     _live.days = static_cast<u16>(total);
+    persist();
 }
 
 void Mbc3::latch() {
@@ -177,6 +240,7 @@ void Mbc3::write_rtc(u8 data) {
     default: break;
     }
     _latched = _live;
+    persist();
 }
 
 u8 Mbc3::read(u16 addr) const {

@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <vector>
 
 namespace bdmg {
@@ -22,6 +23,7 @@ using SPCartridge = std::shared_ptr<class Cartridge>;
 
 class Cartridge: public IDevice {
     struct OnlySharedPtr { explicit OnlySharedPtr() = default; };
+    class MappedFile;
 public:
     enum class Type : u8 {
         rom_only = 0x00,
@@ -54,8 +56,10 @@ public:
         huc1_ram_bat = 0xff
     };
 
-    Cartridge(std::span<const u8>, MapperClock, OnlySharedPtr);
-    static SPCartridge create(const fs::path& path);
+    Cartridge(std::span<const u8>, std::optional<fs::path> save_base, MapperClock, OnlySharedPtr);
+    ~Cartridge();
+
+    static SPCartridge create(const fs::path& path, MapperClock clock = {});
     static SPCartridge create_from_memory(std::span<const u8> data, MapperClock clock = {});
 
     u8 read_byte(u16 addr) const final;
@@ -73,6 +77,9 @@ public:
 private:
     std::vector<u8> _memory;
     std::vector<u8> _ram;
+    std::span<u8> _ram_view;
+    std::unique_ptr<MappedFile> _save;
+    std::unique_ptr<MappedFile> _rtc;
     std::unique_ptr<Mapper> _mapper;
     std::string _title;
     Type _type {};

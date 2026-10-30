@@ -60,9 +60,12 @@ public:
     void write(u16 addr, u8 data) final;
 };
 
+constexpr std::size_t rtc_save_size = 24;
+
 class Mbc3 final : public Mapper {
 public:
-    Mbc3(std::span<const u8> rom, std::span<u8> ram, u32 rom_size, MapperClock clock);
+    Mbc3(std::span<const u8> rom, std::span<u8> ram, u32 rom_size, MapperClock clock,
+         std::span<u8> rtc_save = {});
 
     u8 read(u16 addr) const final;
     void write(u16 addr, u8 data) final;
@@ -80,6 +83,8 @@ private:
     auto now() const -> std::chrono::system_clock::time_point;
     void sync();
     void latch();
+    void load_rtc();
+    void persist();
     u8 read_rtc() const;
     void write_rtc(u8 data);
 
@@ -88,6 +93,7 @@ private:
     Rtc _live;
     Rtc _latched;
     u8 _latch_prev { 0 };
+    std::span<u8> _rtc_save;
 };
 
 class Mbc5 final : public Mapper {
