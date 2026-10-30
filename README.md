@@ -8,7 +8,7 @@ A GameBoy (DMG) emulator with cycle-accurate CPU emulation and SDL3 frontend.
 
 - Mostly cycle-accurate CPU emulation
 - Good-enough PPU emulation
-- MBC1 cartridge support
+- MBC1, MBC2, MBC3 (with RTC) and MBC5 cartridge support
 - Optional boot ROM support
 - 4-channel APU with resampled SDL3 audio output
 - SDL3 based UI
@@ -23,7 +23,8 @@ The project is organized into several directories and modules:
     - **bus.hh / bus.cc**: Defines the `Bus` class, which manages the memory map and device registration. All memory accesses from the CPU and other devices are routed through the Bus. Devices are registered to address ranges, and the Bus supports both regular and ticking devices (devices that need to be advanced every emulation step).
     - **cpu.hh / cpu.cc**: Defines the `Cpu` class, which emulates the GameBoy CPU, including instruction execution, register management, and interrupt handling. The CPU interacts with the Bus for all memory and device access. The CPU uses a `RegisterFile` union for register state and supports a large set of instruction templates for flexible opcode decoding.
     - **pixel-processor.hh / pixel-processor.cc**: Defines the `PixelProcessor` class (PPU), which handles graphics rendering, video RAM, OAM (sprite memory), LCD control, and scanline/frame timing. It implements a callback to notify the frontend when a frame is ready. The PPU is a ticking device and is advanced by the Bus.
-    - **cartridge.hh / cartridge.cc**: Implements the `Cartridge` class, which loads and manages ROM and RAM data, supports MBC1, and exposes the cartridge as a device on the Bus.
+    - **cartridge.hh / cartridge.cc**: Implements the `Cartridge` class, which loads and manages ROM and RAM data and exposes the cartridge as a device on the Bus.
+    - **mapper.hh / mapper.cc**: Implements the `Mapper` strategy interface and the ROM-only, MBC1, MBC2, MBC3 (with RTC) and MBC5 banking implementations used by `Cartridge`.
     - **boot-rom.hh / boot-rom.cc**: Implements the `BootRom` class, which loads the GameBoy (optional) boot ROM and exposes it as a device.
     - **joypad.hh / joypad.cc**: Implements the `Joypad` class, which handles user input and exposes the joypad state as a device on the Bus.
     - **timer.hh / timer.cc**: Implements the `Timer` class, which emulates the GameBoy's timer hardware and is a ticking device.
@@ -118,4 +119,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
  - [x] Implement sound emulation
  - [ ] Add SRAM saving option
- - [ ] Add support for more common MBC types (MBC3, MBC5, etc...)
+ - [x] Add support for more common MBC types (MBC3, MBC5, etc...)

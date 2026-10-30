@@ -2,10 +2,12 @@
 
 #include "common.hh"
 #include "device.hh"
+#include "mapper.hh"
 
 #include <span>
 #include <stdexcept>
 #include <filesystem>
+#include <memory>
 #include <vector>
 
 namespace bdmg {
@@ -52,9 +54,9 @@ public:
         huc1_ram_bat = 0xff
     };
 
-    Cartridge(std::span<const u8>, OnlySharedPtr);
+    Cartridge(std::span<const u8>, MapperClock, OnlySharedPtr);
     static SPCartridge create(const fs::path& path);
-    static SPCartridge create_from_memory(std::span<const u8>);
+    static SPCartridge create_from_memory(std::span<const u8> data, MapperClock clock = {});
 
     u8 read_byte(u16 addr) const final;
     void write_byte(u16, u8) final;
@@ -71,14 +73,11 @@ public:
 private:
     std::vector<u8> _memory;
     std::vector<u8> _ram;
+    std::unique_ptr<Mapper> _mapper;
     std::string _title;
     Type _type {};
     u32 _rom_size {};
     u32 _ram_size {};
-
-    u32 _current_rom_bank;
-    bool _ram_enabled {false};
-    u8 _current_ram_bank {0};
 };
 
 inline
@@ -94,8 +93,5 @@ auto Cartridge::type() const -> Type {
 constexpr auto rom_bank_zero = RangeU16{ 0x0000, 0x4000 };
 constexpr auto rom_bank_n = RangeU16{0x4000, 0x4000 };
 constexpr auto ram_bank = RangeU16 { 0xA000, 0x2000 };
-constexpr auto ram_enable_range = RangeU16{ 0x0000, 0x2000 };
-constexpr auto rom_bank_select_range = RangeU16{ 0x2000, 0x2000 };
-constexpr auto ram_bank_select_range = RangeU16{ 0x4000, 0x2000 };
 
 } // namespace bdmg

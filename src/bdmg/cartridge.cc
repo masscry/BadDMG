@@ -2,6 +2,7 @@
 #include <fstream>
 #include <iostream>
 #include <format>
+#include <utility>
 
 namespace bdmg {
 
@@ -61,7 +62,7 @@ constexpr u32 operator""_KB(unsigned long long value) {
 
 u32 calculate_ram_size(u8 size_code) {
     constexpr u32 size_mapping[] = {
-        0, 8_KB, 32_KB, 128_KB, 64_KB
+        0, 2_KB, 8_KB, 32_KB, 128_KB, 64_KB
     };
     if (size_code >= std::size(size_mapping)) {
         return 0;
@@ -69,7 +70,17 @@ u32 calculate_ram_size(u8 size_code) {
     return size_mapping[size_code];
 }
 
-Cartridge::Cartridge(std::span<const u8> data, OnlySharedPtr)
+namespace {
+
+bool is_mbc5_rumble(Cartridge::Type type) {
+    return type == Cartridge::Type::mbc5_rumble ||
+           type == Cartridge::Type::mbc5_rumble_ram ||
+           type == Cartridge::Type::mbc5_rumble_ram_bat;
+}
+
+} // namespace
+
+Cartridge::Cartridge(std::span<const u8> data, MapperClock clock, OnlySharedPtr)
     : _memory(data.begin(), data.end()) {
     _type = static_cast<Type>(_memory[type_range.start]);
     _rom_size = (data.size() + 0x3FFF) & ~0x3FFF;
@@ -80,6 +91,11 @@ Cartridge::Cartridge(std::span<const u8> data, OnlySharedPtr)
     if (_rom_size < 0x8000) {
         _rom_size = 0x8000;
     }
+    // The mapper masks addresses with _rom_size; pad odd-sized files so those
+    // reads stay in bounds.
+    if (_memory.size() < _rom_size) {
+        _memory.resize(_rom_size, 0xFF);
+    }
     _ram_size = calculate_ram_size(_memory[ram_size_range.start]);
     switch (_type) {
     case Type::mbc1_ram:
@@ -89,6 +105,11 @@ Cartridge::Cartridge(std::span<const u8> data, OnlySharedPtr)
             _ram_size = 8_KB;
         }
         break;
+    case Type::mbc2:
+    case Type::mbc2_bat:
+        // The MBC2 die has 512x4 bits of RAM regardless of the header.
+        _ram_size = 512;
+        break;
     default:
         break;
     }
@@ -96,15 +117,33 @@ Cartridge::Cartridge(std::span<const u8> data, OnlySharedPtr)
         _ram.resize(_ram_size);
     }
 
-    _current_rom_bank = 1;
-    _ram_enabled = false;
-    _current_ram_bank = 0;
-
     switch(_type) {
     case Type::rom_only:
+        _mapper = std::make_unique<RomOnly>(_memory, _ram, _rom_size);
+        break;
     case Type::mbc1:
     case Type::mbc1_ram:
     case Type::mbc1_ram_bat:
+        _mapper = std::make_unique<Mbc1>(_memory, _ram, _rom_size);
+        break;
+    case Type::mbc2:
+    case Type::mbc2_bat:
+        _mapper = std::make_unique<Mbc2>(_memory, _ram, _rom_size);
+        break;
+    case Type::mbc3_timer_bat:
+    case Type::mbc3_timer_ram_bat:
+    case Type::mbc3:
+    case Type::mbc3_ram:
+    case Type::mbc3_ram_bat:
+        _mapper = std::make_unique<Mbc3>(_memory, _ram, _rom_size, std::move(clock));
+        break;
+    case Type::mbc5:
+    case Type::mbc5_ram:
+    case Type::mbc5_ram_bat:
+    case Type::mbc5_rumble:
+    case Type::mbc5_rumble_ram:
+    case Type::mbc5_rumble_ram_bat:
+        _mapper = std::make_unique<Mbc5>(_memory, _ram, _rom_size, is_mbc5_rumble(_type));
         break;
     default:
         throw CartridgeError(std::format("unsupported cartridge type: {}", type_text(_type)));
@@ -126,51 +165,16 @@ SPCartridge Cartridge::create(const fs::path& path) {
     return create_from_memory(std::span<const u8>(buffer));
 }
 
-SPCartridge Cartridge::create_from_memory(std::span<const u8> data) {
-    return std::make_shared<Cartridge>(data, OnlySharedPtr{});
+SPCartridge Cartridge::create_from_memory(std::span<const u8> data, MapperClock clock) {
+    return std::make_shared<Cartridge>(data, std::move(clock), OnlySharedPtr{});
 }
 
 u8 Cartridge::read_byte(u16 addr) const {
-    if (rom_bank_zero.has(addr)) {
-        return _memory[addr];
-    }
-    if (rom_bank_n.has(addr)) {
-        u32 effective_address = (addr & 0x3FFF) + (_current_rom_bank * 0x4000);
-        return _memory[effective_address & (_rom_size - 1)];
-    }
-    if (ram_bank.has(addr) && _ram_enabled && !_ram.empty()) {
-        u32 effective_address = (addr & 0x1FFF) + (_current_ram_bank * 0x2000);
-        return _ram[effective_address % _ram_size];
-    }
-    return 0xFF;
+    return _mapper->read(addr);
 }
 
 void Cartridge::write_byte(u16 addr, u8 data) {
-    if (ram_enable_range.has(addr)) {
-        _ram_enabled = (data & 0x0F) == 0x0A;
-        return;
-    }
-    
-    if (rom_bank_select_range.has(addr)) {
-        if (_type == Type::mbc1 || _type == Type::mbc1_ram || _type == Type::mbc1_ram_bat) {
-            u8 bank = (data & 0x1F);
-            if (bank == 0) bank = 1;
-            _current_rom_bank = bank;
-        }
-        return;
-    }
-    
-    if (ram_bank_select_range.has(addr)) {
-        if (_type == Type::mbc1_ram || _type == Type::mbc1_ram_bat) {
-            _current_ram_bank = data & 0x03;
-        }
-        return;
-    }
-    
-    if (ram_bank.has(addr) && _ram_enabled && !_ram.empty()) {
-        u32 effective_address = (addr & 0x1FFF) + (_current_ram_bank * 0x2000);
-        _ram[effective_address % _ram_size] = data;
-    }
+    _mapper->write(addr, data);
 }
 
 void Cartridge::print_info(std::ostream& out) {

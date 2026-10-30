@@ -14,6 +14,7 @@ target_sources(bdmg
         pixel-processor.cc
         timer.cc
         joypad.cc
+        mapper.cc
         serial.cc
         interrupt.cc
 )
