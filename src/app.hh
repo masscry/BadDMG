@@ -6,6 +6,7 @@
 #include <bdmg/audio.hh>
 
 #include "fps-counter.hh"
+#include "input.hh"
 #include "sdl.hh"
 #include "wav.hh"
 
@@ -33,14 +34,7 @@ private:
     void update_frame(std::span<const u8, screen_size.x * screen_size.y>);
     void push_audio();
 
-    bool _up = false;
-    bool _down = false;
-    bool _left = false;
-    bool _right = false;
-    bool _a = false;
-    bool _b = false;
-    bool _select = false;
-    bool _start = false;
+    std::vector<std::unique_ptr<IInput>> _inputs;
 
     Window _window;
     Renderer _renderer;
