@@ -12,6 +12,9 @@ SDL_AppResult SDL_AppInit(void **pApp, int argc, char* argv[]) {
     try {
         SDL_Log("%s", "Init Application");
         bdmg::call_check(SDL_InitSubSystem, SDL_INIT_VIDEO|SDL_INIT_AUDIO);
+        if (!SDL_InitSubSystem(SDL_INIT_GAMEPAD)) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "gamepad init failed: %s", SDL_GetError());
+        }
         *pApp = new bdmg::Application(argc, argv);
         return SDL_APP_CONTINUE;
     } catch (const std::exception& exc) {
@@ -49,6 +52,6 @@ SDL_AppResult SDL_AppEvent(void *pApp, SDL_Event *event) {
 void SDL_AppQuit(void *pApp, SDL_AppResult result) {
     SDL_Log("Quit Application (result: %d)", static_cast<int>(result));
     delete reinterpret_cast<bdmg::Application*>(pApp);
-    SDL_QuitSubSystem(SDL_INIT_VIDEO|SDL_INIT_AUDIO);
+    SDL_QuitSubSystem(SDL_INIT_VIDEO|SDL_INIT_AUDIO|SDL_INIT_GAMEPAD);
     SDL_Quit();
 }

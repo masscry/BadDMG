@@ -8,6 +8,30 @@ namespace bdmg {
 
 using SPJoypad = std::shared_ptr<class Joypad>;
 
+struct InputState {
+    bool up = false;
+    bool down = false;
+    bool left = false;
+    bool right = false;
+    bool a = false;
+    bool b = false;
+    bool select = false;
+    bool start = false;
+};
+
+inline InputState operator|(const InputState& lhs, const InputState& rhs) {
+    return {
+        .up = lhs.up || rhs.up,
+        .down = lhs.down || rhs.down,
+        .left = lhs.left || rhs.left,
+        .right = lhs.right || rhs.right,
+        .a = lhs.a || rhs.a,
+        .b = lhs.b || rhs.b,
+        .select = lhs.select || rhs.select,
+        .start = lhs.start || rhs.start,
+    };
+}
+
 enum class Button : u8 {
     right  = 0x01,
     left   = 0x02,
@@ -33,8 +57,7 @@ public:
         return DeviceTypeId::joypad;
     }
 
-    void poll(bool right, bool left, bool up, bool down,
-             bool a, bool b, bool select, bool start);
+    void poll(const InputState& state);
 
 private:
     u8 _joypad_reg = 0xFF;

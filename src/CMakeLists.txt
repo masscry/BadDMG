@@ -8,6 +8,7 @@ target_sources(BadDMG
         sdl-main.cc
         sdl.cc
         wav.cc
+        input.cc
 )
 
 target_compile_options(BadDMG

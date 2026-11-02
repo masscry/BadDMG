@@ -89,6 +89,9 @@ struct Options {
 Application::Application(int argc, char* argv[]) {
     auto options = Options(argc, argv);
 
+    _inputs.push_back(std::make_unique<KeyboardInput>());
+    _inputs.push_back(std::make_unique<GamepadInput>());
+
     const auto frames_hint = std::to_string(device_audio_frames);
     SDL_SetHint(SDL_HINT_AUDIO_DEVICE_SAMPLE_FRAMES, frames_hint.c_str());
 
@@ -315,19 +318,17 @@ void Application::push_event(const SDL_Event* event) {
     if (event->type == SDL_EVENT_KEY_DOWN && event->key.key == SDLK_F12) {
         _make_screenshot = true;
     }
-    if (event->type == SDL_EVENT_KEY_DOWN || event->type == SDL_EVENT_KEY_UP) {
-        bool pressed = event->type == SDL_EVENT_KEY_DOWN;
-        switch (event->key.key) {
-            case SDLK_UP:     _up = pressed; break;
-            case SDLK_DOWN:   _down = pressed; break;
-            case SDLK_LEFT:   _left = pressed; break;
-            case SDLK_RIGHT:  _right = pressed; break;
-            case SDLK_Z:      _a = pressed; break;
-            case SDLK_X:      _b = pressed; break;
-            case SDLK_RETURN: _start = pressed; break;
-            case SDLK_RSHIFT: _select = pressed; break;
+
+    bool changed = false;
+    for (const auto& input: _inputs) {
+        changed |= input->handle_event(*event);
+    }
+    if (changed) {
+        InputState state;
+        for (const auto& input: _inputs) {
+            state = state | input->state();
         }
-        _joypad->poll(_right, _left, _up, _down, _a, _b, _select, _start);
+        _joypad->poll(state);
     }
 }
 

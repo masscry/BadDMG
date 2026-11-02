@@ -28,33 +28,32 @@ void Joypad::write_byte(u16 addr, u8 data) {
     }
 }
 
-void Joypad::poll(bool right, bool left, bool up, bool down,
-                  bool a, bool b, bool select, bool start) {
+void Joypad::poll(const InputState& state) {
     _dpad_keys = 0x0F;
-    if (right && !left) {
+    if (state.right && !state.left) {
         _dpad_keys &= ~static_cast<u8>(Button::right);
     }
-    if (left && !right) {
+    if (state.left && !state.right) {
         _dpad_keys &= ~static_cast<u8>(Button::left);
     }
-    if (up && !down) {
+    if (state.up && !state.down) {
         _dpad_keys &= ~static_cast<u8>(Button::up);
     }
-    if (down && !up) {
+    if (state.down && !state.up) {
         _dpad_keys &= ~static_cast<u8>(Button::down);
     }
 
     _button_keys = 0x0F;
-    if (a) {
+    if (state.a) {
         _button_keys &= ~static_cast<u8>(Button::a);
     }
-    if (b) {
+    if (state.b) {
         _button_keys &= ~static_cast<u8>(Button::b);
     }
-    if (select) {
+    if (state.select) {
         _button_keys &= ~static_cast<u8>(Button::select);
     }
-    if (start) {
+    if (state.start) {
         _button_keys &= ~static_cast<u8>(Button::start);
     }
 }
