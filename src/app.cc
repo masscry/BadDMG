@@ -1,5 +1,6 @@
 #include "app.hh"
 #include "sdl.hh"
+#include "touch-controls.hh"
 #include "wav.hh"
 
 #include <bdmg/common.hh>
@@ -91,9 +92,18 @@ Application::Application(int argc, char* argv[]) {
 
     _inputs.push_back(std::make_unique<KeyboardInput>());
     _inputs.push_back(std::make_unique<GamepadInput>());
+#ifdef SDL_PLATFORM_ANDROID
+    _inputs.push_back(std::make_unique<TouchInput>());
+#endif
 
+#ifdef SDL_PLATFORM_ANDROID
+    // SDL otherwise picks the orientation from the small window size below.
+    SDL_SetHint(SDL_HINT_ORIENTATIONS, "Portrait");
+#else
+    // AAudio rejects this small buffer on some Android devices, keep it desktop-only.
     const auto frames_hint = std::to_string(device_audio_frames);
     SDL_SetHint(SDL_HINT_AUDIO_DEVICE_SAMPLE_FRAMES, frames_hint.c_str());
+#endif
 
     if (!options.record_wav.empty()) {
         _wav = std::make_unique<WavWriter>();
@@ -115,12 +125,12 @@ Application::Application(int argc, char* argv[]) {
         throw SDLError();
     }
     call_check(SDL_SetRenderVSync, _renderer.get(), 1);
-
-    call_check(SDL_SetRenderLogicalPresentation,
-        _renderer.get(),
-        screen_size.x, screen_size.y,
-        SDL_LOGICAL_PRESENTATION_INTEGER_SCALE
-    );
+#ifdef SDL_PLATFORM_ANDROID
+    // Hide the system bars: games need the whole screen, and touch
+    // coordinates otherwise disagree with the surface below the status bar.
+    // The renderer exists first so the surface resize can't race its creation.
+    call_check(SDL_SetWindowFullscreen, _window.get(), true);
+#endif
 
     SDL_AudioSpec spec {
         .format = SDL_AUDIO_F32,
@@ -263,7 +273,25 @@ void Application::idle() {
     call_check(SDL_SetRenderDrawColor, _renderer.get(), 0, 0, 0, SDL_ALPHA_OPAQUE);
     call_check(SDL_RenderClear, _renderer.get());
     call_check(SDL_UpdateTexture, _tex.get(), nullptr, _frame.data(), screen_size.x * sizeof(u32));
-    call_check(SDL_RenderTexture, _renderer.get(), _tex.get(), nullptr, nullptr);
+    int out_w = 0;
+    int out_h = 0;
+    if (SDL_GetRenderOutputSize(_renderer.get(), &out_w, &out_h) && out_w > 0 && out_h > 0) {
+#ifdef SDL_PLATFORM_ANDROID
+        constexpr bool top_anchored = true;
+#else
+        constexpr bool top_anchored = false;
+#endif
+        const auto dst = game_destination(
+            static_cast<float>(out_w), static_cast<float>(out_h), top_anchored);
+        call_check(SDL_RenderTexture, _renderer.get(), _tex.get(), nullptr, &dst);
+    }
+#ifdef SDL_PLATFORM_ANDROID
+    InputState state;
+    for (const auto& input: _inputs) {
+        state = state | input->state();
+    }
+    draw_touch_controls(_renderer.get(), state);
+#endif
     call_check(SDL_RenderPresent, _renderer.get());
 }
 
