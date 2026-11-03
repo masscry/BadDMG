@@ -376,6 +376,7 @@ TEST(CartridgeSave, battery_ram_is_live_mapped) {
         EXPECT_EQ(cartridge->read_byte(0xA003), 0x00);
 
         cartridge->write_byte(0xA000, 0x42);
+        cartridge->flush();
 
         // The file is the live SRAM: the write is visible without exit.
         std::ifstream live(sav_path, std::ios::binary);

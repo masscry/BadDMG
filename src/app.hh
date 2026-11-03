@@ -1,6 +1,7 @@
 #pragma once
 
 #include <bdmg/bus.hh>
+#include <bdmg/cartridge.hh>
 #include <bdmg/cpu.hh>
 #include <bdmg/joypad.hh>
 #include <bdmg/audio.hh>
@@ -43,6 +44,7 @@ private:
 
     bdmg::Cpu _cpu;
     bdmg::SPBus _bus;
+    bdmg::SPCartridge _cartridge;
     bdmg::SPPixelProcessor _pp;
     bdmg::SPJoypad _joypad;
     bdmg::SPAudio _audio;

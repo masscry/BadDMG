@@ -149,13 +149,13 @@ Application::Application(int argc, char* argv[]) {
     }
     call_check(SDL_SetTextureScaleMode, _tex.get(), SDL_SCALEMODE_NEAREST);
 
-    auto cartridge = Cartridge::create(options.cartridge);
-    cartridge->print_info(std::cerr);
+    _cartridge = Cartridge::create(options.cartridge);
+    _cartridge->print_info(std::cerr);
 
     _bus = Bus::create();
-    _bus->register_device(rom_bank_zero, cartridge);
-    _bus->register_device(rom_bank_n, cartridge);
-    _bus->register_device(ram_bank, cartridge);
+    _bus->register_device(rom_bank_zero, _cartridge);
+    _bus->register_device(rom_bank_n, _cartridge);
+    _bus->register_device(ram_bank, _cartridge);
 
     _bus->register_device(work_ram_range, bdmg::WorkRam::create());
 
@@ -314,6 +314,9 @@ void Application::push_audio() {
 void Application::push_event(const SDL_Event* event) {
     if (event->type == SDL_EVENT_QUIT) {
         throw Application::Exit{};
+    }
+    if (event->type == SDL_EVENT_WILL_ENTER_BACKGROUND && _cartridge) {
+        _cartridge->flush();
     }
     if (event->type == SDL_EVENT_KEY_DOWN && event->key.key == SDLK_F12) {
         _make_screenshot = true;

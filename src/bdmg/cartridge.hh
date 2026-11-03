@@ -72,6 +72,9 @@ public:
     auto title() const -> std::string_view;
     auto type() const -> Type;
 
+    // Write mapped save and RTC files back to storage.
+    void flush();
+
     void print_info(std::ostream&);
 
 private:

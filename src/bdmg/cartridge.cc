@@ -23,6 +23,8 @@ public:
     MappedFile(const fs::path& path, std::size_t size);
     ~MappedFile();
 
+    void flush();
+
     std::span<u8> bytes() const {
         return { _data, _size };
     }
@@ -71,14 +73,27 @@ Cartridge::MappedFile::MappedFile(const fs::path& path, std::size_t size)
 
 Cartridge::MappedFile::~MappedFile() {
     if (_data) {
-        if (::msync(_data, _size, MS_SYNC) != 0) {
-            std::cerr << "failed to flush save file " << _path.native()
-                      << ": " << std::strerror(errno) << std::endl;
-        }
+        flush();
         ::munmap(_data, _size);
     }
     if (_fd >= 0) {
         ::close(_fd);
+    }
+}
+
+void Cartridge::MappedFile::flush() {
+    if (_data && ::msync(_data, _size, MS_SYNC) != 0) {
+        std::cerr << "failed to flush save file " << _path.native()
+                  << ": " << std::strerror(errno) << std::endl;
+    }
+}
+
+void Cartridge::flush() {
+    if (_save) {
+        _save->flush();
+    }
+    if (_rtc) {
+        _rtc->flush();
     }
 }
 
