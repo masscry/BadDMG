@@ -9,6 +9,7 @@ target_sources(BadDMG
         sdl.cc
         wav.cc
         input.cc
+        touch-controls.cc
 )
 
 target_compile_options(BadDMG

@@ -99,3 +99,23 @@ target_link_libraries(rom_test
 )
 
 gtest_discover_tests(rom_test)
+
+add_executable(touch_controls_test
+    touch_controls_test.cc
+    ../src/touch-controls.cc
+)
+target_compile_options(touch_controls_test
+    PRIVATE
+        ${BDMG_COMPILE_OPTIONS}
+)
+target_include_directories(touch_controls_test
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+)
+target_link_libraries(touch_controls_test
+    PRIVATE
+        SDL3::SDL3
+        GTest::gtest_main
+)
+
+gtest_discover_tests(touch_controls_test)
