@@ -135,9 +135,11 @@ Application::Application(int argc, char* argv[]) {
         nullptr
     ));
     if (!_audio_stream) {
-        throw SDLError();
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                    "audio output unavailable, running silently: %s", SDL_GetError());
+    } else {
+        call_check(SDL_ResumeAudioStreamDevice, _audio_stream.get());
     }
-    call_check(SDL_ResumeAudioStreamDevice, _audio_stream.get());
 
     _tex.reset(SDL_CreateTexture(
         _renderer.get(), 
@@ -266,7 +268,11 @@ void Application::idle() {
 }
 
 void Application::push_audio() {
-    if (!_audio_stream || _audio_samples.empty()) {
+    if (!_audio_stream) {
+        _audio_samples.clear();
+        return;
+    }
+    if (_audio_samples.empty()) {
         return;
     }
     constexpr auto device_frame_bytes = static_cast<int>(2 * sizeof(f32));
