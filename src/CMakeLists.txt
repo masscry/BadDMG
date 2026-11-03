@@ -1,6 +1,12 @@
 add_subdirectory(bdmg)
 
-add_executable(BadDMG)
+if(ANDROID)
+    # SDLActivity loads the application code as libmain.so
+    add_library(BadDMG SHARED)
+    set_target_properties(BadDMG PROPERTIES OUTPUT_NAME main)
+else()
+    add_executable(BadDMG)
+endif()
 
 target_sources(BadDMG
     PRIVATE
