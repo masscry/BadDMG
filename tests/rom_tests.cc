@@ -348,6 +348,11 @@ fs::path make_test_rom(const fs::path& dir, Cartridge::Type type, u8 ram_code) {
 
 } // namespace
 
+TEST(Cartridge, rejects_roms_smaller_than_the_header) {
+    const std::vector<u8> tiny(0x100, 0);
+    EXPECT_THROW(Cartridge::create_from_memory(tiny), CartridgeError);
+}
+
 TEST(CartridgeSave, battery_ram_is_live_mapped) {
     const auto dir = fs::temp_directory_path() / "baddmg-cartridge-save-test";
     fs::remove_all(dir);

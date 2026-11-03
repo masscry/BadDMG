@@ -181,6 +181,9 @@ bool is_mbc3_timer(Cartridge::Type type) {
 Cartridge::Cartridge(std::span<const u8> data, std::optional<fs::path> save_base,
                      MapperClock clock, OnlySharedPtr)
     : _memory(data.begin(), data.end()) {
+    if (data.size() < 0x150) {
+        throw CartridgeError("cartridge ROM is smaller than the cartridge header");
+    }
     _type = static_cast<Type>(_memory[type_range.start]);
     _rom_size = (data.size() + 0x3FFF) & ~0x3FFF;
     while (_rom_size & (_rom_size - 1)) {
