@@ -14,10 +14,16 @@ add_subdirectory(deps)
 
 set(BDMG_COMPILE_OPTIONS -Wall -Wextra -Werror)
 
+if(ANDROID)
+    set(BDMG_BUILD_TESTS_DEFAULT OFF)
+else()
+    set(BDMG_BUILD_TESTS_DEFAULT ON)
+endif()
+
 option(
     BDMG_BUILD_TESTS
     "Fetch the test ROMs and GoogleTest, and build the ROM test suite"
-    ON
+    ${BDMG_BUILD_TESTS_DEFAULT}
 )
 
 add_subdirectory(src)

@@ -1,0 +1,51 @@
+name: Android
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Set up JDK
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '17'
+
+    - name: Install NDK and CMake
+      run: |
+        sdkmanager="$(command -v sdkmanager || true)"
+        if [ -z "$sdkmanager" ]; then
+          sdkmanager="$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)"
+        fi
+        yes | "$sdkmanager" --licenses > /dev/null 2>&1 || true
+        "$sdkmanager" "platforms;android-37.0" "build-tools;36.0.0" "ndk;29.0.14206865" "cmake;4.1.2"
+
+    - name: Set up Gradle
+      uses: gradle/actions/setup-gradle@v4
+
+    - name: Build debug APK
+      working-directory: android
+      run: ./gradlew assembleDebug -Pabi=arm64-v8a
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: BadDMG-debug-apk
+        path: android/app/build/outputs/apk/debug/*.apk
+        if-no-files-found: error

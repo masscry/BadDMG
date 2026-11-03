@@ -70,6 +70,28 @@ The test suite (GoogleTest and the Blargg test ROMs, both auto-fetched)
 is built by default; configure with `-DBDMG_BUILD_TESTS=OFF` to skip it,
 and run it with `ctest --output-on-failure`.
 
+### Android
+
+The port lives in `android/` and is built with the top-level CMake project
+through the Android Gradle plugin. Open `android/` in Android Studio and run
+the `app` configuration, or build from the command line:
+
+```bash
+cd android
+./gradlew assembleDebug
+```
+
+The Android SDK's NDK and CMake are downloaded by Android Studio, or installed
+with the SDK Manager (the versions are pinned in `android/app/build.gradle`).
+`assembleRelease` builds optimized libraries (`-O2 -DNDEBUG`) and leaves the
+APK unsigned; sign it with your own keystore or Android Studio's *Generate
+Signed Bundle / APK* before distributing it.
+
+The first launch asks for a `.gb` ROM with the system file picker and copies
+it into app-private storage, so cartridge saves and the RTC file are written
+next to it. The app runs fullscreen in portrait with on-screen controls. Use
+the "Change ROM" launcher shortcut to import another ROM.
+
 ### Tested Configurations (Application builds and runs)
 
 The emulator has been tested on the following configurations:
@@ -89,6 +111,8 @@ Run the emulator with:
 ./BadDMG -c <rom-file>
 ```
 
+On Android the cartridge is selected through the system file picker.
+
 ### Options
 - `-b, --boot-rom`: Path to boot ROM (optional)
 - `-c, --cartridge`: Path to game ROM (required)
@@ -101,6 +125,9 @@ Run the emulator with:
 - Start: Return key
 - Select: Right Shift
 - Screenshot: F12
+
+On Android the app runs in portrait orientation with touch controls drawn on
+screen; gamepads and keyboards work as well.
 
 Screenshots are saved as PGM files with timestamp in the current directory.
 Battery-backed cartridge RAM is saved to `<rom>.sav` next to the ROM, and MBC3

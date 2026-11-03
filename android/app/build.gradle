@@ -1,0 +1,100 @@
+plugins {
+    id 'com.android.application'
+}
+
+// SDL's Java glue ships with the SDL release pinned in deps/CMakeLists.txt. Keep
+// it out of the source tree: fetch the archive and unpack it into the build
+// directory. Keep the URL and hash in sync with that file.
+def sdlArchiveUrl = 'https://github.com/libsdl-org/SDL/archive/refs/tags/release-3.2.16.tar.gz'
+def sdlArchiveSha256 = 'a1af401fb49b824ba721683862439e014498f79753602827e174f3613357aff0'
+def sdlArchive = layout.buildDirectory.file('tmp/sdl.tar.gz')
+def sdlJavaDir = layout.buildDirectory.dir('generated/sdl/java')
+
+def fetchSdlArchive = tasks.register('fetchSdlArchive') {
+    inputs.property('url', sdlArchiveUrl)
+    inputs.property('sha256', sdlArchiveSha256)
+    outputs.file(sdlArchive)
+    doLast {
+        def file = sdlArchive.get().asFile
+        if (!file.exists()) {
+            file.parentFile.mkdirs()
+            file.bytes = new URI(sdlArchiveUrl).toURL().bytes
+        }
+        def actual = java.security.MessageDigest.getInstance('SHA-256')
+            .digest(file.bytes).encodeHex().toString()
+        if (actual != sdlArchiveSha256) {
+            file.delete()
+            throw new GradleException("SDL archive checksum mismatch: ${actual}")
+        }
+    }
+}
+
+def extractSdlJava = tasks.register('extractSdlJava', Sync) {
+    dependsOn fetchSdlArchive
+    from(tarTree(sdlArchive)) {
+        include 'SDL-*/android-project/app/src/main/java/**'
+        eachFile { it.path = it.path.split('/').drop(6).join('/') }
+        includeEmptyDirs = false
+    }
+    into sdlJavaDir
+}
+
+def abiFilter = project.findProperty('abi')
+
+android {
+    namespace 'org.baddmg.baddmg'
+    compileSdk 37
+    ndkVersion '29.0.14206865'
+
+    defaultConfig {
+        applicationId 'org.baddmg.baddmg'
+        minSdk 21
+        targetSdk 37
+        versionCode 1
+        versionName '0.2'
+
+        externalNativeBuild {
+            cmake {
+                arguments '-DANDROID_STL=c++_static', '-DANDROID_PLATFORM=android-21'
+                if (abiFilter) {
+                    abiFilters abiFilter
+                } else {
+                    abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
+                }
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path '../../CMakeLists.txt'
+            version '4.1.2'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    sourceSets {
+        main {
+            java.srcDir(sdlJavaDir.get().asFile)
+        }
+    }
+
+    lint {
+        abortOnError = true
+    }
+}
+
+tasks.named('preBuild').configure {
+    dependsOn extractSdlJava
+}
