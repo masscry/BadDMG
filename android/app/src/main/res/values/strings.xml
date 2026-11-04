@@ -1,6 +1,8 @@
 <resources>
     <string name="app_name">BadDMG</string>
     <string name="select_rom">Select a Game Boy ROM</string>
-    <string name="import_failed">Could not read the selected ROM</string>
+    <string name="import_failed">Could not read the selected file</string>
+    <string name="not_a_rom">Not a Game Boy ROM</string>
+    <string name="no_rom_in_archive">No .gb or .gbc file in the archive</string>
     <string name="change_rom">Change ROM</string>
 </resources>
