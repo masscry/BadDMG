@@ -106,7 +106,7 @@ void PixelProcessor::evaluate_sprites_for_line(u8 ly) {
             continue;
         }
         
-        const u8 effective_y = y_pos - 16;
+        const auto effective_y = y_pos - sprite_y_offset;
         if (ly >= effective_y && ly < (effective_y + height)) {
             Sprite& sprite = _visible_sprites[_visible_sprite_count];
             sprite.y = y_pos;
