@@ -17,6 +17,8 @@ struct InputState {
     bool b = false;
     bool select = false;
     bool start = false;
+
+    friend bool operator==(const InputState&, const InputState&) = default;
 };
 
 inline InputState operator|(const InputState& lhs, const InputState& rhs) {

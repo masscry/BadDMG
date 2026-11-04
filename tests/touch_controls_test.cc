@@ -46,5 +46,24 @@ TEST(TouchControls, game_is_top_anchored_with_controls_below) {
     SDL_DestroySurface(surface);
 }
 
+TEST(TouchControls, dpad_has_diagonals_and_a_neutral_center) {
+    constexpr float width = 1080.0f;
+    constexpr float height = 2424.0f;
+
+    // make_layout(): center (248.4, 1426.56), arm 151.2, so the corner
+    // between up and left is around (97.2, 1275.36).
+    const auto up = touch_state_at(width, height, 248.4f, 1275.36f);
+    EXPECT_TRUE(up.up);
+    EXPECT_FALSE(up.left || up.right || up.down);
+
+    const auto up_left = touch_state_at(width, height, 97.2f, 1275.36f);
+    EXPECT_TRUE(up_left.up);
+    EXPECT_TRUE(up_left.left);
+    EXPECT_FALSE(up_left.right || up_left.down);
+
+    const auto center = touch_state_at(width, height, 248.4f, 1426.56f);
+    EXPECT_FALSE(center.up || center.down || center.left || center.right);
+}
+
 } // namespace
 } // namespace bdmg
