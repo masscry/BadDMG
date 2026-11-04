@@ -3,6 +3,7 @@ package space.deci.baddmg;
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -406,16 +407,19 @@ public class RomPickerActivity extends Activity {
     private void exportSaveTo(Uri uri, File rom) {
         File sav = savePath(rom, ".sav");
         File rtc = savePath(rom, ".rtc");
-        try (OutputStream raw = getContentResolver().openOutputStream(uri)) {
-            if (raw == null) {
-                throw new IOException("failed to open " + uri);
-            }
-            try (ZipOutputStream zip = new ZipOutputStream(raw)) {
-                if (sav != null && sav.isFile()) {
-                    addZipEntry(zip, sav, saveName(rom) + ".sav");
+        try {
+            checkContentUri(uri);
+            try (OutputStream raw = getContentResolver().openOutputStream(uri)) {
+                if (raw == null) {
+                    throw new IOException("failed to open " + uri);
                 }
-                if (rtc != null && rtc.isFile()) {
-                    addZipEntry(zip, rtc, saveName(rom) + ".rtc");
+                try (ZipOutputStream zip = new ZipOutputStream(raw)) {
+                    if (sav != null && sav.isFile()) {
+                        addZipEntry(zip, sav, saveName(rom) + ".sav");
+                    }
+                    if (rtc != null && rtc.isFile()) {
+                        addZipEntry(zip, rtc, saveName(rom) + ".rtc");
+                    }
                 }
             }
             Toast.makeText(this, R.string.save_exported, Toast.LENGTH_SHORT).show();
@@ -458,7 +462,6 @@ public class RomPickerActivity extends Activity {
     }
 
     private void importSaveFrom(Uri uri, File rom) {
-        String name = displayName(uri);
         File sav = savePath(rom, ".sav");
         File rtc = savePath(rom, ".rtc");
         if (sav == null || rtc == null) {
@@ -466,6 +469,7 @@ public class RomPickerActivity extends Activity {
             return;
         }
         try (InputStream in = open(uri)) {
+            String name = displayName(uri);
             if (isArchive(name)) {
                 importSaveZip(in, sav, rtc);
             } else if (name.toLowerCase(Locale.ROOT).endsWith(".sav")) {
@@ -744,11 +748,55 @@ public class RomPickerActivity extends Activity {
     }
 
     private InputStream open(Uri uri) throws IOException {
+        checkContentUri(uri);
         InputStream in = getContentResolver().openInputStream(uri);
         if (in == null) {
             throw new IOException("failed to open " + uri);
         }
         return in;
+    }
+
+    private static void checkContentUri(Uri uri) throws IOException {
+        if (uri == null || !ContentResolver.SCHEME_CONTENT.equals(uri.getScheme())) {
+            throw new IOException("unsupported URI: " + uri);
+        }
+        String path = uri.getPath();
+        if (path == null) {
+            return;
+        }
+        String normalized = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+            ? normalizePathApi26(path)
+            : normalizePath(path);
+        if (normalized.startsWith("/data")) {
+            throw new IOException("refusing private URI: " + uri);
+        }
+    }
+
+    @TargetApi(Build.VERSION_CODES.O)
+    private static String normalizePathApi26(String path) {
+        return java.nio.file.Paths.get(path).normalize().toString();
+    }
+
+    private static String normalizePath(String path) {
+        String[] parts = path.split("/");
+        StringBuilder out = new StringBuilder();
+        int skip = 0;
+        for (int i = parts.length - 1; i >= 0; --i) {
+            String part = parts[i];
+            if (part.isEmpty() || part.equals(".")) {
+                continue;
+            }
+            if (part.equals("..")) {
+                ++skip;
+                continue;
+            }
+            if (skip > 0) {
+                --skip;
+                continue;
+            }
+            out.insert(0, "/" + part);
+        }
+        return out.length() == 0 ? "/" : out.toString();
     }
 
     private static void copy(InputStream in, OutputStream out) throws IOException {
@@ -780,7 +828,8 @@ public class RomPickerActivity extends Activity {
                 .edit().putString(PREF_ROM_PATH, rom.getAbsolutePath()).apply();
     }
 
-    private String displayName(Uri uri) {
+    private String displayName(Uri uri) throws IOException {
+        checkContentUri(uri);
         try (Cursor cursor = getContentResolver().query(
                 uri, new String[] {OpenableColumns.DISPLAY_NAME}, null, null, null)) {
             if (cursor != null && cursor.moveToFirst()) {
@@ -803,9 +852,12 @@ public class RomPickerActivity extends Activity {
         return slash >= 0 ? path.substring(slash + 1) : path;
     }
 
-    private static String safeName(String name) {
-        String safe = name.replace('/', '_').replace('\\', '_');
-        return safe.equals(".") || safe.equals("..") ? "game.gb" : safe;
+    private static String safeName(String name) throws IOException {
+        if (name == null || name.isEmpty() || name.equals(".") || name.equals("..")
+                || name.contains("..") || name.contains("/") || name.contains("\\")) {
+            throw new IOException("invalid file name: " + name);
+        }
+        return name;
     }
 
     static String storedRom(Context context) {
