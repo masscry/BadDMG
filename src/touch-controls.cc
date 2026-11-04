@@ -31,6 +31,7 @@ struct Rect {
 struct Layout {
     Rect control[control_count];
     Rect dpad_center;
+    Rect dpad_bounds;
 };
 
 Layout make_layout(float w, float h) {
@@ -62,6 +63,8 @@ Layout make_layout(float w, float h) {
     layout.control[static_cast<std::size_t>(TouchInput::Control::right)] =
         centered(dpad_x + arm, dpad_y, arm, arm);
     layout.dpad_center = centered(dpad_x, dpad_y, arm, arm);
+    layout.dpad_bounds = Rect{
+        dpad_x - arm * 1.5f, dpad_y - arm * 1.5f, arm * 3, arm * 3};
 
     layout.control[static_cast<std::size_t>(TouchInput::Control::a)] =
         centered(w * 0.82f, area_top + area_h * 0.24f, radius * 2, radius * 2);
@@ -86,6 +89,56 @@ bool is_pressed(const InputState& state, TouchInput::Control control) {
     case TouchInput::Control::select: return state.select;
     }
     return false;
+}
+
+void set_pressed(InputState& state, TouchInput::Control control) {
+    switch (control) {
+    case TouchInput::Control::up: state.up = true; break;
+    case TouchInput::Control::down: state.down = true; break;
+    case TouchInput::Control::left: state.left = true; break;
+    case TouchInput::Control::right: state.right = true; break;
+    case TouchInput::Control::a: state.a = true; break;
+    case TouchInput::Control::b: state.b = true; break;
+    case TouchInput::Control::start: state.start = true; break;
+    case TouchInput::Control::select: state.select = true; break;
+    }
+}
+
+bool is_empty(const InputState& state) {
+    return !state.up && !state.down && !state.left && !state.right
+        && !state.a && !state.b && !state.start && !state.select;
+}
+
+bool is_dpad(const InputState& state) {
+    return state.up || state.down || state.left || state.right;
+}
+
+std::optional<InputState> hit_test(const Layout& layout, float x, float y) {
+    for (auto i = static_cast<std::size_t>(TouchInput::Control::a);
+         i < control_count; ++i) {
+        if (layout.control[i].contains(x, y)) {
+            InputState state;
+            set_pressed(state, static_cast<TouchInput::Control>(i));
+            return state;
+        }
+    }
+
+    if (!layout.dpad_bounds.contains(x, y)) {
+        return std::nullopt;
+    }
+
+    const float cx = layout.dpad_bounds.x + layout.dpad_bounds.w / 2;
+    const float cy = layout.dpad_bounds.y + layout.dpad_bounds.h / 2;
+    const float dead = layout.dpad_bounds.w / 6;
+    const float dx = x - cx;
+    const float dy = y - cy;
+
+    InputState state;
+    state.left = dx < -dead;
+    state.right = dx > dead;
+    state.up = dy < -dead;
+    state.down = dy > dead;
+    return state;
 }
 
 void fill(SDL_Renderer* renderer, const Rect& rect, u8 alpha) {
@@ -257,6 +310,14 @@ SDL_FRect game_destination(float w, float h, bool top_anchored) {
     return {x, y, dw, dh};
 }
 
+InputState touch_state_at(float w, float h, float x, float y) {
+    const auto layout = make_layout(w, h);
+    if (const auto state = hit_test(layout, x, y)) {
+        return *state;
+    }
+    return {};
+}
+
 bool TouchInput::handle_event(const SDL_Event& event) {
     switch (event.type) {
     case SDL_EVENT_FINGER_DOWN:
@@ -272,7 +333,7 @@ bool TouchInput::handle_event(const SDL_Event& event) {
     const auto previous = std::find_if(_pressed.begin(), _pressed.end(),
         [finger](const Press& press) { return press.finger == finger; });
 
-    std::optional<Control> target;
+    std::optional<InputState> target;
     if (event.type == SDL_EVENT_FINGER_DOWN || event.type == SDL_EVENT_FINGER_MOTION) {
         SDL_Window* window = SDL_GetWindowFromID(event.tfinger.windowID);
         int w = 0;
@@ -281,12 +342,7 @@ bool TouchInput::handle_event(const SDL_Event& event) {
             const auto layout = make_layout(static_cast<float>(w), static_cast<float>(h));
             const auto x = event.tfinger.x * static_cast<float>(w);
             const auto y = event.tfinger.y * static_cast<float>(h);
-            for (std::size_t i = 0; i < control_count; ++i) {
-                if (layout.control[i].contains(x, y)) {
-                    target = static_cast<Control>(i);
-                    break;
-                }
-            }
+            target = hit_test(layout, x, y);
         }
     }
 
@@ -297,11 +353,25 @@ bool TouchInput::handle_event(const SDL_Event& event) {
         _pressed.erase(previous);
         return true;
     }
-    if (previous != _pressed.end()) {
-        if (previous->control == *target) {
+
+    if (is_empty(*target)) {
+        // The finger is in the middle of the D-pad. Keep the last direction
+        // while it crosses the dead zone, but don't invent one from nothing.
+        if (previous == _pressed.end()) {
             return false;
         }
-        previous->control = *target;
+        if (is_dpad(previous->state)) {
+            return false;
+        }
+        _pressed.erase(previous);
+        return true;
+    }
+
+    if (previous != _pressed.end()) {
+        if (previous->state == *target) {
+            return false;
+        }
+        previous->state = *target;
         return true;
     }
     _pressed.push_back({finger, *target});
@@ -311,16 +381,7 @@ bool TouchInput::handle_event(const SDL_Event& event) {
 InputState TouchInput::state() const {
     InputState state;
     for (const auto& press: _pressed) {
-        switch (press.control) {
-        case Control::up: state.up = true; break;
-        case Control::down: state.down = true; break;
-        case Control::left: state.left = true; break;
-        case Control::right: state.right = true; break;
-        case Control::a: state.a = true; break;
-        case Control::b: state.b = true; break;
-        case Control::start: state.start = true; break;
-        case Control::select: state.select = true; break;
-        }
+        state = state | press.state;
     }
     return state;
 }

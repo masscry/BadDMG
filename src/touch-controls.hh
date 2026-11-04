@@ -21,7 +21,7 @@ public:
 private:
     struct Press {
         SDL_FingerID finger;
-        Control control;
+        InputState state;
     };
 
     std::vector<Press> _pressed;
@@ -30,6 +30,9 @@ private:
 // Destination of the 160x144 screen inside a w x h output. Top-anchored
 // layouts leave the space below for touch controls.
 SDL_FRect game_destination(float w, float h, bool top_anchored);
+
+// Controls under (x, y) for a w x h window. Exposed for the layout tests.
+InputState touch_state_at(float w, float h, float x, float y);
 
 void draw_touch_controls(SDL_Renderer* renderer, const InputState& state);
 
