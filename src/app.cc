@@ -256,7 +256,11 @@ void Application::idle() {
     if (_frame_ready) {
         auto now = SDL_GetTicksNS();
         if (now - _last_frame_ready > static_cast<u64>(frame_time.count())) {
-            _last_frame_ready = now;
+            constexpr auto period = static_cast<u64>(frame_time.count());
+            if (now - _last_frame_ready > 4 * period) {
+                _last_frame_ready = now - period;
+            }
+            _last_frame_ready += period;
             _frame_ready = false;
         }
         return;
