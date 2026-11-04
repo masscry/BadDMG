@@ -1,4 +1,4 @@
-package org.baddmg.baddmg;
+package space.deci.baddmg;
 
 import org.libsdl.app.SDLActivity;
 
