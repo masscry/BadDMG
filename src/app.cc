@@ -389,6 +389,12 @@ void Application::push_event(const SDL_Event* event) {
     if (event->type == SDL_EVENT_QUIT) {
         throw Application::Exit{};
     }
+#ifdef SDL_PLATFORM_ANDROID
+    if (event->type == SDL_EVENT_KEY_DOWN && event->key.key == SDLK_AC_BACK) {
+        // Leave the game and let the ROM library underneath come back.
+        throw Application::Exit{};
+    }
+#endif
     if (event->type == SDL_EVENT_WILL_ENTER_BACKGROUND && _cartridge) {
         _cartridge->flush();
     }
