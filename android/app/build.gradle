@@ -2,11 +2,11 @@ plugins {
     id 'com.android.application'
 }
 
-// SDL's Java glue ships with the SDL release pinned in deps/CMakeLists.txt. Keep
+// SDL's Java glue ships in the SDL archive pinned in deps/CMakeLists.txt. Keep
 // it out of the source tree: fetch the archive and unpack it into the build
 // directory. Keep the URL and hash in sync with that file.
-def sdlArchiveUrl = 'https://github.com/libsdl-org/SDL/archive/refs/tags/release-3.2.16.tar.gz'
-def sdlArchiveSha256 = 'a1af401fb49b824ba721683862439e014498f79753602827e174f3613357aff0'
+def sdlArchiveUrl = 'https://github.com/libsdl-org/SDL/archive/32e9d379f62ed0f2f092c269967f557c307431e8.tar.gz'
+def sdlArchiveSha256 = 'ffa99dbe0dbd699cfd509983c1122dacc72e83dfaa1eadb28dd0dae518199292'
 def sdlArchive = layout.buildDirectory.file('tmp/sdl.tar.gz')
 def sdlJavaDir = layout.buildDirectory.dir('generated/sdl/java')
 

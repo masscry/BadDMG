@@ -1,5 +1,9 @@
 include(FetchContent)
 
+if(POLICY CMP0135)
+    cmake_policy(SET CMP0135 NEW)
+endif()
+
 set(FETCHCONTENT_QUIET FALSE)
 
 FetchContent_Declare(
@@ -10,12 +14,11 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(argparse)
 
+# It is faster to checkout an archive, than a git repo.
 FetchContent_Declare(
     SDL3
-    GIT_REPOSITORY "https://github.com/libsdl-org/SDL.git"
-    GIT_TAG "release-3.2.16"
-    GIT_SHALLOW TRUE
-    GIT_PROGRESS TRUE
+    URL "https://github.com/libsdl-org/SDL/archive/32e9d379f62ed0f2f092c269967f557c307431e8.tar.gz"
+    URL_HASH "SHA256=ffa99dbe0dbd699cfd509983c1122dacc72e83dfaa1eadb28dd0dae518199292"
     EXCLUDE_FROM_ALL
 )
 FetchContent_MakeAvailable(SDL3)
