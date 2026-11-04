@@ -9,8 +9,8 @@ A GameBoy (DMG) emulator with cycle-accurate CPU emulation and SDL3 frontend.
 - Mostly cycle-accurate CPU emulation
 - Good-enough PPU emulation
 - MBC1, MBC2, MBC3 (with RTC) and MBC5 cartridge support
-- Battery-backed SRAM saved to a live memory-mapped `.sav` file
-- MBC3 real-time clock persisted in a `.rtc` file
+- Battery-backed SRAM saved to a live memory-mapped `.sav` file named by the ROM's SHA-256
+- MBC3 real-time clock persisted in a `.rtc` file named by the ROM's SHA-256
 - Optional boot ROM support
 - 4-channel APU with resampled SDL3 audio output
 - SDL3 based UI
@@ -130,9 +130,12 @@ On Android the app runs in portrait orientation with touch controls drawn on
 screen; gamepads and keyboards work as well.
 
 Screenshots are saved as PGM files with timestamp in the current directory.
-Battery-backed cartridge RAM is saved to `<rom>.sav` next to the ROM, and MBC3
-clock state to `<rom>.rtc`. Saves are memory-mapped, so they update while the
-game runs and need no explicit save action.
+Battery-backed cartridge RAM is saved to `<sha256>.sav` next to the ROM, and
+MBC3 clock state to `<sha256>.rtc`, where the hash is the SHA-256 of the ROM
+contents. ROMs with identical contents in the same directory share one save,
+regardless of their file names. Saves are memory-mapped, so they update while
+the game runs and need no explicit save action. On Android, long-press a ROM
+in the library to export or import the `.sav` and `.rtc` files.
 
 ## Additional Resources
 
