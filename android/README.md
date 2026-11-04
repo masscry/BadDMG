@@ -28,6 +28,11 @@ be refreshed by hand.
 so the APK comes out unsigned. Sign it with your keystore (Android Studio:
 *Build > Generate Signed Bundle / APK*) before distributing.
 
+For local testing, `./install.sh` builds the release APK for the connected
+device's ABI, signs it with the debug key and installs it with
+`adb install -r` (app data is kept). The debug key is local-only; use a real
+keystore for distribution.
+
 ## Toolchain
 
 `app/build.gradle` pins NDK 29.0.14206865 and CMake 4.1.2, both installable
