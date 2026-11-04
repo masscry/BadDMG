@@ -42,12 +42,12 @@ def extractSdlJava = tasks.register('extractSdlJava', Sync) {
 def abiFilter = project.findProperty('abi')
 
 android {
-    namespace 'org.baddmg.baddmg'
+    namespace 'space.deci.baddmg'
     compileSdk 37
     ndkVersion '29.0.14206865'
 
     defaultConfig {
-        applicationId 'org.baddmg.baddmg'
+        applicationId 'space.deci.baddmg'
         minSdk 21
         targetSdk 37
         versionCode 1

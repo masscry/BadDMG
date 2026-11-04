@@ -5,8 +5,8 @@
         android:icon="@mipmap/ic_launcher"
         android:shortcutShortLabel="@string/change_rom">
         <intent
-            android:action="org.baddmg.baddmg.PICK_ROM"
-            android:targetPackage="org.baddmg.baddmg"
-            android:targetClass="org.baddmg.baddmg.RomPickerActivity" />
+            android:action="space.deci.baddmg.PICK_ROM"
+            android:targetPackage="space.deci.baddmg"
+            android:targetClass="space.deci.baddmg.RomPickerActivity" />
     </shortcut>
 </shortcuts>

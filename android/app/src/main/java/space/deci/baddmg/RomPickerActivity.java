@@ -1,4 +1,4 @@
-package org.baddmg.baddmg;
+package space.deci.baddmg;
 
 import android.app.Activity;
 import android.content.Context;
@@ -30,8 +30,8 @@ import java.util.zip.ZipInputStream;
  * ZIP archives are unpacked, the emulator only reads plain ROM images.
  */
 public class RomPickerActivity extends Activity {
-    public static final String ACTION_PICK_ROM = "org.baddmg.baddmg.PICK_ROM";
-    public static final String EXTRA_ROM_PATH = "org.baddmg.baddmg.ROM_PATH";
+    public static final String ACTION_PICK_ROM = "space.deci.baddmg.PICK_ROM";
+    public static final String EXTRA_ROM_PATH = "space.deci.baddmg.ROM_PATH";
 
     private static final String TAG = "BadDMG";
     private static final String PREFS = "baddmg";
