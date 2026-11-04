@@ -89,8 +89,12 @@ Signed Bundle / APK* before distributing it.
 
 The first launch asks for a `.gb` ROM with the system file picker and copies
 it into app-private storage, so cartridge saves and the RTC file are written
-next to it. The app runs fullscreen in portrait with on-screen controls. Use
-the "Change ROM" launcher shortcut to import another ROM.
+next to it. After that the launcher shows the imported ROMs: tap one to play,
+press Back to return to the list, and use "Add ROM" to import another.
+Long-press a ROM to pin it to the home screen, export/import its save as a
+ZIP, or delete it (optionally together with its saves). Identical ROM contents
+are deduplicated and share one save. The game itself runs fullscreen in
+portrait with on-screen controls.
 
 ### Tested Configurations (Application builds and runs)
 

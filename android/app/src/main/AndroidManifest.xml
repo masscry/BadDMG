@@ -29,7 +29,6 @@
         <activity
             android:name=".MainActivity"
             android:exported="false"
-            android:launchMode="singleInstance"
             android:screenOrientation="portrait"
             android:preferMinimalPostProcessing="true"
             android:configChanges="layoutDirection|locale|grammaticalGender|fontScale|fontWeightAdjustment|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation" />
