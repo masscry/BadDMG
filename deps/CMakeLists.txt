@@ -32,6 +32,28 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(r8brain)
 
+FetchContent_Declare(
+    sha2
+    URL "https://github.com/masscry/sha-2/archive/5139c294ee9150e65c2fd03c73050dfd9f4ebb14.tar.gz"
+    URL_HASH "SHA256=42068789d44b434ec2a6f39614fc71c0478ecb6aef5aaff7fd3dc84aa223303c"
+    EXCLUDE_FROM_ALL
+)
+# The sha-2 project registers its own ctest entry even when excluded from the
+# build, so keep BUILD_TESTING off for its configure step only.
+set(_bdmg_build_testing ${BUILD_TESTING})
+set(BUILD_TESTING OFF)
+FetchContent_MakeAvailable(sha2)
+set(BUILD_TESTING ${_bdmg_build_testing})
+
+# sha2.hpp trips -Wunused-lambda-capture with our -Werror; treat it as a
+# system header instead of patching the dependency.
+add_library(bdmg_sha2 INTERFACE)
+add_library(bdmg::sha2 ALIAS bdmg_sha2)
+target_include_directories(bdmg_sha2
+    SYSTEM INTERFACE
+        ${sha2_SOURCE_DIR}/src
+)
+
 add_library(bdmg_rsmp STATIC)
 add_library(bdmg::rsmp ALIAS bdmg_rsmp)
 

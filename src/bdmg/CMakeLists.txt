@@ -32,4 +32,6 @@ target_compile_options(bdmg
 target_link_libraries(bdmg
     PUBLIC
         bdmg::rsmp
+    PRIVATE
+        bdmg::sha2
 )
