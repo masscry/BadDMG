@@ -87,6 +87,23 @@ struct Options {
     }
 };
 
+namespace {
+
+InputState newly_pressed(const InputState& current, const InputState& previous) {
+    return {
+        .up = current.up && !previous.up,
+        .down = current.down && !previous.down,
+        .left = current.left && !previous.left,
+        .right = current.right && !previous.right,
+        .a = current.a && !previous.a,
+        .b = current.b && !previous.b,
+        .select = current.select && !previous.select,
+        .start = current.start && !previous.start,
+    };
+}
+
+} // namespace
+
 Application::Application(int argc, char* argv[]) {
     auto options = Options(argc, argv);
 
@@ -257,6 +274,14 @@ void Application::update_frame(PixelProcessor::FrameSpan fb) {
     }
 }
 
+InputState Application::input_state() const {
+    InputState state;
+    for (const auto& input: _inputs) {
+        state = state | input->state();
+    }
+    return state;
+}
+
 void Application::idle() {
     SDL_Event event{};
     while(SDL_PollEvent(&event)) {
@@ -275,6 +300,10 @@ void Application::idle() {
         }
         return;
     }
+    // A tap can be down and up within one event batch. Keep it visible for
+    // at least one CPU frame so the game can sample it.
+    const auto state = input_state() | _latched;
+    _joypad->poll(state);
     while (!_frame_ready) {
         _cycles_since_frame += _cpu.step();
     }
@@ -300,13 +329,10 @@ void Application::idle() {
         call_check(SDL_RenderTexture, _renderer.get(), _tex.get(), nullptr, &dst);
     }
 #ifdef SDL_PLATFORM_ANDROID
-    InputState state;
-    for (const auto& input: _inputs) {
-        state = state | input->state();
-    }
     draw_touch_controls(_renderer.get(), state);
 #endif
     call_check(SDL_RenderPresent, _renderer.get());
+    _latched = {};
 }
 
 void Application::push_audio() {
@@ -375,11 +401,9 @@ void Application::push_event(const SDL_Event* event) {
         changed |= input->handle_event(*event);
     }
     if (changed) {
-        InputState state;
-        for (const auto& input: _inputs) {
-            state = state | input->state();
-        }
-        _joypad->poll(state);
+        const auto state = input_state();
+        _latched = _latched | newly_pressed(state, _last_input);
+        _last_input = state;
     }
 }
 

@@ -34,8 +34,11 @@ public:
 private:
     void update_frame(std::span<const u8, screen_size.x * screen_size.y>);
     void push_audio();
+    InputState input_state() const;
 
     std::vector<std::unique_ptr<IInput>> _inputs;
+    InputState _last_input;
+    InputState _latched;
 
     Window _window;
     Renderer _renderer;
