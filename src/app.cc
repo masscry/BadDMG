@@ -132,16 +132,32 @@ Application::Application(int argc, char* argv[]) {
         .freq = audio_freq
     };
 
-    _audio_stream.reset(SDL_OpenAudioDeviceStream(
-        SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
-        &spec,
-        nullptr,
-        nullptr
-    ));
-    if (!_audio_stream) {
-        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                    "audio output unavailable, running silently: %s", SDL_GetError());
-    } else {
+    const auto default_frames_hint = "512";
+    SDL_SetHint(SDL_HINT_AUDIO_DEVICE_SAMPLE_FRAMES, default_frames_hint);
+
+    auto open_audio = [&] {
+        auto result = SDL_OpenAudioDeviceStream(
+            SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
+            &spec,
+            nullptr,
+            nullptr
+        );
+        if (!result) {
+            SDL_SetHint(SDL_HINT_AUDIO_DEVICE_SAMPLE_FRAMES, nullptr);
+            result = SDL_OpenAudioDeviceStream(
+                SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
+                &spec,
+                nullptr,
+                nullptr
+            );
+        }
+        if (!result) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "audio output unavailable, running silently: %s", SDL_GetError());
+        }
+        return result;
+    };
+    _audio_stream.reset(open_audio());
+    if (_audio_stream) {
         call_check(SDL_ResumeAudioStreamDevice, _audio_stream.get());
     }
 
