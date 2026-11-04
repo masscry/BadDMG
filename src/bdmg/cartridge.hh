@@ -9,6 +9,8 @@
 #include <filesystem>
 #include <memory>
 #include <optional>
+#include <string>
+#include <string_view>
 #include <vector>
 
 namespace bdmg {
@@ -56,7 +58,7 @@ public:
         huc1_ram_bat = 0xff
     };
 
-    Cartridge(std::span<const u8>, std::optional<fs::path> save_base, MapperClock, OnlySharedPtr);
+    Cartridge(std::span<const u8>, std::optional<fs::path> rom_path, MapperClock, OnlySharedPtr);
     ~Cartridge();
 
     static SPCartridge create(const fs::path& path, MapperClock clock = {});
@@ -72,6 +74,17 @@ public:
     auto title() const -> std::string_view;
     auto type() const -> Type;
 
+    // SHA-256 of the original cartridge contents, used to name save files.
+    auto hash() const -> std::string_view {
+        return _sha256;
+    }
+    auto save_path() const -> std::optional<fs::path> {
+        return _save_path;
+    }
+    auto rtc_path() const -> std::optional<fs::path> {
+        return _rtc_path;
+    }
+
     // Write mapped save and RTC files back to storage.
     void flush();
 
@@ -83,8 +96,11 @@ private:
     std::span<u8> _ram_view;
     std::unique_ptr<MappedFile> _save;
     std::unique_ptr<MappedFile> _rtc;
+    std::optional<fs::path> _save_path;
+    std::optional<fs::path> _rtc_path;
     std::unique_ptr<Mapper> _mapper;
     std::string _title;
+    std::string _sha256;
     Type _type {};
     u32 _rom_size {};
     u32 _ram_size {};

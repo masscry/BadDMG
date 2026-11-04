@@ -1,5 +1,7 @@
 #include "cartridge.hh"
 
+#include "sha2.hpp"
+
 #if defined(_WIN32)
 #error "cartridge saves use POSIX mmap; Windows support is not implemented"
 #endif
@@ -9,12 +11,16 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <bit>
 #include <cerrno>
 #include <cstring>
 #include <fstream>
 #include <iostream>
 #include <format>
 #include <utility>
+
+static_assert(std::endian::native == std::endian::little,
+              "sha2.hpp assumes a little-endian host");
 
 namespace bdmg {
 
@@ -191,14 +197,27 @@ bool is_mbc3_timer(Cartridge::Type type) {
            type == Cartridge::Type::mbc3_timer_ram_bat;
 }
 
+std::string to_hex(const sha2::sha256_hash& hash) {
+    static constexpr char digits[] = "0123456789abcdef";
+    std::string text;
+    text.reserve(hash.size() * 2);
+    for (const auto byte: hash) {
+        text.push_back(digits[byte >> 4]);
+        text.push_back(digits[byte & 0x0F]);
+    }
+    return text;
+}
+
 } // namespace
 
-Cartridge::Cartridge(std::span<const u8> data, std::optional<fs::path> save_base,
+Cartridge::Cartridge(std::span<const u8> data, std::optional<fs::path> rom_path,
                      MapperClock clock, OnlySharedPtr)
     : _memory(data.begin(), data.end()) {
     if (data.size() < 0x150) {
         throw CartridgeError("cartridge ROM is smaller than the cartridge header");
     }
+    _sha256 = to_hex(sha2::sha256(
+        data.data(), static_cast<std::uint64_t>(data.size())));
     _type = static_cast<Type>(_memory[type_range.start]);
     _rom_size = (data.size() + 0x3FFF) & ~0x3FFF;
     while (_rom_size & (_rom_size - 1)) {
@@ -230,28 +249,22 @@ Cartridge::Cartridge(std::span<const u8> data, std::optional<fs::path> save_base
     default:
         break;
     }
-    std::optional<fs::path> save_path;
-    if (save_base && _ram_size > 0 && has_battery(_type)) {
-        auto path = *save_base;
-        path.replace_extension(".sav");
-        if (path != *save_base) {
-            save_path = std::move(path);
-            try {
-                _save = std::make_unique<MappedFile>(*save_path, _ram_size);
-            } catch (const std::exception& exc) {
-                std::cerr << exc.what() << " (SRAM will not be persisted)" << std::endl;
-            }
+    if (rom_path && _ram_size > 0 && has_battery(_type)) {
+        auto path = rom_path->parent_path() / (_sha256 + ".sav");
+        _save_path = path;
+        try {
+            _save = std::make_unique<MappedFile>(path, _ram_size);
+        } catch (const std::exception& exc) {
+            std::cerr << exc.what() << " (SRAM will not be persisted)" << std::endl;
         }
     }
-    if (save_base && is_mbc3_timer(_type)) {
-        auto path = *save_base;
-        path.replace_extension(".rtc");
-        if (path != *save_base) {
-            try {
-                _rtc = std::make_unique<MappedFile>(path, rtc_save_size);
-            } catch (const std::exception& exc) {
-                std::cerr << exc.what() << " (RTC will not be persisted)" << std::endl;
-            }
+    if (rom_path && is_mbc3_timer(_type)) {
+        auto path = rom_path->parent_path() / (_sha256 + ".rtc");
+        _rtc_path = path;
+        try {
+            _rtc = std::make_unique<MappedFile>(path, rtc_save_size);
+        } catch (const std::exception& exc) {
+            std::cerr << exc.what() << " (RTC will not be persisted)" << std::endl;
         }
     }
 
@@ -260,9 +273,9 @@ Cartridge::Cartridge(std::span<const u8> data, std::optional<fs::path> save_base
             _ram_view = _save->bytes();
         } else {
             _ram.resize(_ram_size);
-            if (save_path) {
+            if (_save_path) {
                 // The save could not be mapped; still let the game read it.
-                std::ifstream file(*save_path, std::ios::binary);
+                std::ifstream file(*_save_path, std::ios::binary);
                 file.read(reinterpret_cast<char*>(_ram.data()),
                           static_cast<std::streamsize>(_ram.size()));
             }

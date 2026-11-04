@@ -358,7 +358,13 @@ TEST(CartridgeSave, battery_ram_is_live_mapped) {
     fs::remove_all(dir);
     fs::create_directories(dir);
     const auto rom_path = make_test_rom(dir, Cartridge::Type::mbc1_ram_bat, 0x02);
-    const auto sav_path = dir / "game.sav";
+
+    fs::path sav_path;
+    {
+        auto cartridge = Cartridge::create(rom_path);
+        ASSERT_TRUE(cartridge->save_path());
+        sav_path = *cartridge->save_path();
+    }
 
     const std::vector<u8> initial { 0x01, 0x02, 0x03 };
     {
@@ -408,18 +414,64 @@ TEST(CartridgeSave, battery_ram_is_live_mapped) {
     fs::remove_all(dir);
 }
 
+TEST(CartridgeSave, content_hash_names_the_save_file) {
+    const auto dir = fs::temp_directory_path() / "baddmg-cartridge-save-hash-test";
+    fs::remove_all(dir);
+    fs::create_directories(dir);
+    const auto rom_path = make_test_rom(dir, Cartridge::Type::mbc1_ram_bat, 0x02);
+
+    auto cartridge = Cartridge::create(rom_path);
+    ASSERT_TRUE(cartridge->save_path());
+    EXPECT_EQ(cartridge->hash().size(), std::size_t{64});
+    EXPECT_EQ(cartridge->save_path()->filename(),
+              fs::path(std::string(cartridge->hash()) + ".sav"));
+    EXPECT_EQ(cartridge->save_path()->parent_path(), dir);
+
+    fs::remove_all(dir);
+}
+
+TEST(CartridgeSave, same_content_shares_a_save_and_different_content_does_not) {
+    const auto dir = fs::temp_directory_path() / "baddmg-cartridge-save-sharing-test";
+    fs::remove_all(dir);
+    fs::create_directories(dir);
+    const auto rom_path = make_test_rom(dir, Cartridge::Type::mbc1_ram_bat, 0x02);
+    const auto copy_path = dir / "copy.gb";
+    fs::copy_file(rom_path, copy_path);
+
+    auto first = Cartridge::create(rom_path);
+    auto second = Cartridge::create(copy_path);
+    ASSERT_TRUE(first->save_path());
+    ASSERT_TRUE(second->save_path());
+    EXPECT_EQ(first->hash(), second->hash());
+    EXPECT_EQ(*first->save_path(), *second->save_path());
+
+    {
+        std::fstream rom(copy_path, std::ios::in | std::ios::out | std::ios::binary);
+        rom.seekp(0x200);
+        rom.put(static_cast<char>(0x42));
+    }
+    auto third = Cartridge::create(copy_path);
+    ASSERT_TRUE(third->save_path());
+    EXPECT_NE(first->hash(), third->hash());
+    EXPECT_NE(*first->save_path(), *third->save_path());
+
+    fs::remove_all(dir);
+}
+
 TEST(CartridgeRtc, persists_and_catches_up_while_closed) {
     const auto dir = fs::temp_directory_path() / "baddmg-cartridge-rtc-test";
     fs::remove_all(dir);
     fs::create_directories(dir);
     const auto rom_path = make_test_rom(dir, Cartridge::Type::mbc3_timer_ram_bat, 0x02);
-    const auto rtc_path = dir / "game.rtc";
 
+    fs::path rtc_path;
     auto now = std::chrono::system_clock::from_time_t(1'700'000'000);
     MapperClock clock = [&now] { return now; };
 
     {
         auto cartridge = Cartridge::create(rom_path, clock);
+        ASSERT_TRUE(cartridge->rtc_path());
+        rtc_path = *cartridge->rtc_path();
         cartridge->write_byte(0x0000, 0x0A);
         cartridge->write_byte(0x4000, 0x0A);  // RTC hours
         cartridge->write_byte(0xA000, 12);
