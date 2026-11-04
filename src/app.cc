@@ -96,14 +96,8 @@ Application::Application(int argc, char* argv[]) {
     _inputs.push_back(std::make_unique<TouchInput>());
 #endif
 
-#ifdef SDL_PLATFORM_ANDROID
-    // SDL otherwise picks the orientation from the small window size below.
     SDL_SetHint(SDL_HINT_ORIENTATIONS, "Portrait");
-#else
-    // AAudio rejects this small buffer on some Android devices, keep it desktop-only.
-    const auto frames_hint = std::to_string(device_audio_frames);
-    SDL_SetHint(SDL_HINT_AUDIO_DEVICE_SAMPLE_FRAMES, frames_hint.c_str());
-#endif
+    SDL_SetHint(SDL_HINT_AUDIO_DEVICE_STREAM_ROLE, "Game");
 
     if (!options.record_wav.empty()) {
         _wav = std::make_unique<WavWriter>();
