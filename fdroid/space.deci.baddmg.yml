@@ -1,0 +1,26 @@
+Categories:
+  - Emulator
+License: MIT
+AuthorName: masscry
+WebSite: https://github.com/masscry/BadDMG
+SourceCode: https://github.com/masscry/BadDMG
+IssueTracker: https://github.com/masscry/BadDMG/issues
+
+RepoType: git
+Repo: https://github.com/masscry/BadDMG.git
+
+Builds:
+  - versionName: '0.2'
+    versionCode: 1
+    commit: 3885303793060b0e657445b75756d07cbd66d2b5
+    subdir: android
+    gradle:
+      - yes
+    output: app/build/outputs/apk/release/app-release-unsigned.apk
+    ndk: 29.0.14206865
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags ^v[0-9.]+$
+UpdateCheckData: android/app/build.gradle|versionCode\s+(\d+)|android/app/build.gradle|versionName\s+'([^']+)'
+CurrentVersion: '0.2'
+CurrentVersionCode: 1
