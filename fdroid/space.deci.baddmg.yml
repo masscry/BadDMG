@@ -21,6 +21,7 @@ Builds:
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9.]+$
-UpdateCheckData: android/app/build.gradle|versionCode\s+(\d+)|android/app/build.gradle|versionName\s+'([^']+)'
+UpdateCheckData: 
+  android/app/build.gradle|versionCode\s+(\d+)|android/app/build.gradle|versionName\s+'([^']+)'
 CurrentVersion: '0.2'
 CurrentVersionCode: 1
