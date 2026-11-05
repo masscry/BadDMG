@@ -37,7 +37,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -53,16 +53,24 @@ import java.util.zip.ZipOutputStream;
  * Tapping one starts the emulator; Back returns to this list.
  */
 public class RomPickerActivity extends Activity {
-    public static final String ACTION_PICK_ROM = "space.deci.baddmg.PICK_ROM";
     public static final String EXTRA_ROM_PATH = "space.deci.baddmg.ROM_PATH";
     public static final String EXTRA_PLAY_ROM = "space.deci.baddmg.PLAY_ROM";
 
     private static final String TAG = "BadDMG";
     private static final String PREFS = "baddmg";
     private static final String PREF_ROM_PATH = "rom_path";
+    private static final String PREF_LAUNCHES = "launches:";
     private static final int REQUEST_ROM = 1;
     private static final int REQUEST_EXPORT_SAVE = 2;
     private static final int REQUEST_IMPORT_SAVE = 3;
+
+    // The largest Game Boy cartridge is 8 MiB. Cap imports so a hostile
+    // VIEW intent cannot fill storage.
+    static final long MAX_ROM_SIZE = 8 * 1024 * 1024;
+
+    // Imports run off the UI thread; serialize them so two hand-offs cannot
+    // write the same temporary file at once.
+    private static final Object IMPORT_LOCK = new Object();
 
     // Cartridge types the emulator accepts, see src/bdmg/cartridge.hh.
     private static final int[] CARTRIDGE_TYPES = {
@@ -72,6 +80,7 @@ public class RomPickerActivity extends Activity {
     };
 
     private final List<File> _roms = new ArrayList<>();
+    private volatile List<String> _shortcutIds;
     private ArrayAdapter<String> _adapter;
     private ListView _list;
     private TextView _empty;
@@ -94,7 +103,10 @@ public class RomPickerActivity extends Activity {
         if (playRequested(getIntent())) {
             return;
         }
-        if (_roms.isEmpty() || ACTION_PICK_ROM.equals(getIntent().getAction())) {
+        if (viewRequested(getIntent())) {
+            return;
+        }
+        if (_roms.isEmpty()) {
             pickRom();
         }
     }
@@ -107,8 +119,8 @@ public class RomPickerActivity extends Activity {
         if (playRequested(intent)) {
             return;
         }
-        if (ACTION_PICK_ROM.equals(intent.getAction())) {
-            pickRom();
+        if (viewRequested(intent)) {
+            return;
         }
     }
 
@@ -177,7 +189,7 @@ public class RomPickerActivity extends Activity {
                 }
             }
         }
-        _roms.sort(Comparator.comparing(File::getName, String.CASE_INSENSITIVE_ORDER));
+        Collections.sort(_roms, (a, b) -> a.getName().compareToIgnoreCase(b.getName()));
         Set<String> hashes = new HashSet<>();
         for (Iterator<File> it = _roms.iterator(); it.hasNext();) {
             File rom = it.next();
@@ -192,15 +204,11 @@ public class RomPickerActivity extends Activity {
         }
         _list.setVisibility(_roms.isEmpty() ? View.GONE : View.VISIBLE);
         _empty.setVisibility(_roms.isEmpty() ? View.VISIBLE : View.GONE);
+        updateShortcuts();
     }
 
     private static boolean isRom(File file) {
-        if (!file.isFile()) {
-            return false;
-        }
-        String name = file.getName().toLowerCase(Locale.ROOT);
-        if (name.endsWith(".sav") || name.endsWith(".rtc") || name.endsWith(".tmp")
-                || name.endsWith(".zip") || name.endsWith(".sha256")) {
+        if (!file.isFile() || !isRomName(file.getName())) {
             return false;
         }
         try {
@@ -209,6 +217,12 @@ public class RomPickerActivity extends Activity {
         } catch (IOException e) {
             return false;
         }
+    }
+
+    /** Only cartridge files are imported and listed; nothing else belongs here. */
+    static boolean isRomName(String name) {
+        String lower = name.toLowerCase(Locale.ROOT);
+        return lower.endsWith(".gb") || lower.endsWith(".gbc");
     }
 
     private File romDirOrNull() {
@@ -238,6 +252,52 @@ public class RomPickerActivity extends Activity {
             return true;
         }
         return false;
+    }
+
+    /** Imports and opens a ROM handed over by another app with ACTION_VIEW. */
+    private boolean viewRequested(Intent intent) {
+        Uri uri = intent.getData();
+        if (!Intent.ACTION_VIEW.equals(intent.getAction()) || uri == null) {
+            return false;
+        }
+        // Clear the data so a configuration change does not open the ROM again.
+        intent.setData(null);
+        openRom(uri);
+        return true;
+    }
+
+    /**
+     * Imports and starts a ROM from a content URI. The import runs off the UI
+     * thread because a slow provider must not freeze the app. Imports are
+     * serialized so two hand-offs cannot write the same temporary file.
+     */
+    private void openRom(Uri uri) {
+        new Thread(() -> {
+            String path;
+            try {
+                synchronized (IMPORT_LOCK) {
+                    path = importRom(uri);
+                }
+            } catch (IOException | SecurityException | IllegalArgumentException e) {
+                runOnUiThread(() -> importFailed(e));
+                return;
+            }
+            // The user may have left while a slow provider was reading.
+            runOnUiThread(() -> {
+                if (!isFinishing() && !isDestroyed()) {
+                    launchGame(path);
+                }
+            });
+        }, "rom-import").start();
+    }
+
+    private void importFailed(Exception e) {
+        Log.e(TAG, "failed to import ROM", e);
+        int message = e instanceof RomError
+            ? ((RomError) e).message
+            : R.string.import_failed;
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+        refreshRoms();
     }
 
     private void showRomActions(File rom) {
@@ -335,6 +395,76 @@ public class RomPickerActivity extends Activity {
         return "rom-" + Integer.toHexString(rom.getAbsolutePath().hashCode());
     }
 
+    private void updateShortcuts() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N_MR1) {
+            return;
+        }
+        updateShortcutsApi25();
+    }
+
+    /** Publishes the five most launched ROMs to the launcher's long-press menu. */
+    @TargetApi(Build.VERSION_CODES.N_MR1)
+    private void updateShortcutsApi25() {
+        ShortcutManager manager = getSystemService(ShortcutManager.class);
+        if (manager == null) {
+            return;
+        }
+        int max = Math.min(5, manager.getMaxShortcutCountPerActivity());
+        List<File> ranked = new ArrayList<>(_roms);
+        ranked.sort((a, b) -> {
+            int byLaunches = Integer.compare(launchCount(b), launchCount(a));
+            return byLaunches != 0
+                ? byLaunches
+                : a.getName().compareToIgnoreCase(b.getName());
+        });
+        List<ShortcutInfo> shortcuts = new ArrayList<>();
+        List<String> ids = new ArrayList<>();
+        for (File rom : ranked) {
+            if (shortcuts.size() >= max) {
+                break;
+            }
+            ids.add(shortcutId(rom));
+            shortcuts.add(shortcutInfo(rom, shortcuts.size()));
+        }
+        // setDynamicShortcuts is rate-limited, so publish only when the list changed.
+        if (ids.equals(_shortcutIds)) {
+            return;
+        }
+        // The platform marks setDynamicShortcuts @WorkerThread.
+        new Thread(() -> {
+            try {
+                if (manager.setDynamicShortcuts(shortcuts)) {
+                    _shortcutIds = ids;
+                }
+            } catch (RuntimeException e) {
+                Log.w(TAG, "failed to update shortcuts", e);
+            }
+        }, "shortcuts").start();
+    }
+
+    private int launchCount(File rom) {
+        return getSharedPreferences(PREFS, MODE_PRIVATE)
+                .getInt(PREF_LAUNCHES + rom.getAbsolutePath(), 0);
+    }
+
+    private void countLaunch(File rom) {
+        SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        String key = PREF_LAUNCHES + rom.getAbsolutePath();
+        prefs.edit().putInt(key, prefs.getInt(key, 0) + 1).apply();
+    }
+
+    @TargetApi(Build.VERSION_CODES.N_MR1)
+    private ShortcutInfo shortcutInfo(File rom, int rank) {
+        return new ShortcutInfo.Builder(this, shortcutId(rom))
+            .setShortLabel(saveName(rom))
+            .setIcon(Icon.createWithResource(this, R.mipmap.ic_launcher))
+            .setIntent(new Intent(this, RomPickerActivity.class)
+                .setAction(Intent.ACTION_VIEW)
+                .putExtra(EXTRA_PLAY_ROM, rom.getAbsolutePath()))
+            .setRank(rank)
+            .build();
+    }
+
     private void disableShortcuts(List<File> roms) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || roms.isEmpty()) {
             return;
@@ -374,16 +504,7 @@ public class RomPickerActivity extends Activity {
             Toast.makeText(this, R.string.shortcut_unsupported, Toast.LENGTH_SHORT).show();
             return;
         }
-        String id = shortcutId(rom);
-        Intent intent = new Intent(this, RomPickerActivity.class)
-            .setAction(Intent.ACTION_VIEW)
-            .putExtra(EXTRA_PLAY_ROM, rom.getAbsolutePath());
-        ShortcutInfo shortcut = new ShortcutInfo.Builder(this, id)
-            .setShortLabel(rom.getName())
-            .setLongLabel(getString(R.string.play_rom, rom.getName()))
-            .setIcon(Icon.createWithResource(this, R.mipmap.ic_launcher))
-            .setIntent(intent)
-            .build();
+        ShortcutInfo shortcut = shortcutInfo(rom, 0);
         if (!manager.requestPinShortcut(shortcut, null)) {
             Toast.makeText(this, R.string.shortcut_unsupported, Toast.LENGTH_SHORT).show();
         }
@@ -549,16 +670,7 @@ public class RomPickerActivity extends Activity {
             refreshRoms();
             return;
         }
-        try {
-            launchGame(importRom(data.getData()));
-        } catch (IOException e) {
-            Log.e(TAG, "failed to import ROM", e);
-            int message = e instanceof RomError
-                ? ((RomError) e).message
-                : R.string.import_failed;
-            Toast.makeText(this, message, Toast.LENGTH_LONG).show();
-            refreshRoms();
-        }
+        openRom(data.getData());
     }
 
     private String importRom(Uri uri) throws IOException {
@@ -596,8 +708,12 @@ public class RomPickerActivity extends Activity {
      * contents reuse the existing file and its saves.
      */
     private File store(InputStream in, String name) throws IOException {
-        File target = new File(romDir(), safeName(name));
-        File temp = new File(romDir(), safeName(name) + ".tmp");
+        String fileName = safeName(name);
+        if (!isRomName(fileName)) {
+            throw new RomError(R.string.not_a_rom, "not a .gb or .gbc file: " + name);
+        }
+        File target = new File(romDir(), fileName);
+        File temp = new File(romDir(), fileName + ".tmp");
         MessageDigest digest;
         try {
             digest = MessageDigest.getInstance("SHA-256");
@@ -606,7 +722,7 @@ public class RomPickerActivity extends Activity {
         }
         try {
             try (OutputStream out = new FileOutputStream(temp)) {
-                copy(in, out, digest);
+                copy(in, out, digest, MAX_ROM_SIZE);
             }
             checkRom(temp);
             String hash = hex(digest.digest());
@@ -764,6 +880,9 @@ public class RomPickerActivity extends Activity {
         if (path == null) {
             return;
         }
+        if (path.indexOf('\0') >= 0) {
+            throw new IOException("invalid URI path: " + uri);
+        }
         String normalized = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
             ? normalizePathApi26(path)
             : normalizePath(path);
@@ -800,14 +919,19 @@ public class RomPickerActivity extends Activity {
     }
 
     private static void copy(InputStream in, OutputStream out) throws IOException {
-        copy(in, out, null);
+        copy(in, out, null, Long.MAX_VALUE);
     }
 
-    private static void copy(InputStream in, OutputStream out, MessageDigest digest)
+    static void copy(InputStream in, OutputStream out, MessageDigest digest, long limit)
             throws IOException {
         byte[] buffer = new byte[64 * 1024];
+        long total = 0;
         int read;
         while ((read = in.read(buffer)) != -1) {
+            total += read;
+            if (total > limit) {
+                throw new RomError(R.string.not_a_rom, "file too large");
+            }
             out.write(buffer, 0, read);
             if (digest != null) {
                 digest.update(buffer, 0, read);
@@ -871,7 +995,9 @@ public class RomPickerActivity extends Activity {
             Toast.makeText(this, R.string.game_already_running, Toast.LENGTH_SHORT).show();
             return;
         }
-        remember(new File(path));
+        File rom = new File(path);
+        remember(rom);
+        countLaunch(rom);
         Intent intent = new Intent(this, MainActivity.class);
         intent.putExtra(EXTRA_ROM_PATH, path);
         startActivity(intent);

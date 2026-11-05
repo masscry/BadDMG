@@ -9,15 +9,17 @@ target becomes `libmain.so` and the Java `SDLActivity` starts it.
 `RomPickerActivity` is the launcher and ROM library. It lists the ROMs in
 `<app files>/roms/`; the first launch with an empty list opens the system file
 picker. Tapping a ROM starts `MainActivity` (`SDLActivity`) with `-c <path>`,
-and Back returns to the list. "Add ROM" imports another ROM; identical ROM
+and Back returns to the list. "Add ROM" imports another ROM (the file name
+must end in `.gb` or `.gbc`); identical ROM
 contents are deduplicated and reuse the existing entry and saves. Long-press a
 ROM for "Add to home screen" (a pinned shortcut), "Export save", "Import
 save" and "Delete ROM" (with or without its save files); saves are exported
 as a ZIP with the `.sav` and `.rtc` files. Saves are
 memory-mapped next to the imported ROM, as on desktop, and named by the ROM's
 SHA-256, so re-importing the same ROM keeps its progress. Only one emulator
-instance runs at a time. The "Change ROM" launcher shortcut (long-press the
-app icon) opens the picker directly.
+instance runs at a time. Long-pressing the app icon lists the five most played
+ROMs as launcher shortcuts. `.gb` and `.gbc` files opened from a file manager
+(or any other app) are imported and started directly.
 
 ## SDL Java shim
 

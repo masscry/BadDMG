@@ -21,9 +21,49 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
+            <!-- Open .gb and .gbc files handed over by file managers. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:mimeType="application/x-gameboy-rom" />
+                <data android:mimeType="application/x-gameboy-color-rom" />
+            </intent-filter>
+            <!-- Senders that only report a generic MIME type. The glob matcher
+                 does not backtrack, so allow dots before the extension. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" android:host="*" android:mimeType="*/*"
+                      android:pathPattern=".*\\.gb" />
+                <data android:scheme="content" android:host="*" android:mimeType="*/*"
+                      android:pathPattern=".*\\..*\\.gb" />
+                <data android:scheme="content" android:host="*" android:mimeType="*/*"
+                      android:pathPattern=".*\\..*\\..*\\.gb" />
+                <data android:scheme="content" android:host="*" android:mimeType="*/*"
+                      android:pathPattern=".*\\.gbc" />
+                <data android:scheme="content" android:host="*" android:mimeType="*/*"
+                      android:pathPattern=".*\\..*\\.gbc" />
+                <data android:scheme="content" android:host="*" android:mimeType="*/*"
+                      android:pathPattern=".*\\..*\\..*\\.gbc" />
+            </intent-filter>
+            <!-- Senders that do not set a MIME type at all. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" android:host="*"
+                      android:pathPattern=".*\\.gb" />
+                <data android:scheme="content" android:host="*"
+                      android:pathPattern=".*\\..*\\.gb" />
+                <data android:scheme="content" android:host="*"
+                      android:pathPattern=".*\\..*\\..*\\.gb" />
+                <data android:scheme="content" android:host="*"
+                      android:pathPattern=".*\\.gbc" />
+                <data android:scheme="content" android:host="*"
+                      android:pathPattern=".*\\..*\\.gbc" />
+                <data android:scheme="content" android:host="*"
+                      android:pathPattern=".*\\..*\\..*\\.gbc" />
+            </intent-filter>
         </activity>
 
         <activity

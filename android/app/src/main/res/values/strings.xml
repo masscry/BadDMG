@@ -5,7 +5,6 @@
     <string name="import_failed">Could not read the selected file</string>
     <string name="not_a_rom">Not a Game Boy ROM</string>
     <string name="no_rom_in_archive">No .gb or .gbc file in the archive</string>
-    <string name="change_rom">Change ROM</string>
     <string name="add_to_home">Add to home screen</string>
     <string name="export_save">Export save</string>
     <string name="import_save">Import save</string>
@@ -22,5 +21,4 @@
     <string name="shortcut_unsupported">This launcher cannot add shortcuts</string>
     <string name="game_already_running">A game is already running</string>
     <string name="close_game_first">Close the running game first</string>
-    <string name="play_rom">Play %1$s</string>
 </resources>
