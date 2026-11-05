@@ -48,14 +48,14 @@ android {
 
     defaultConfig {
         applicationId 'space.deci.baddmg'
-        minSdk 21
+        minSdk 26
         targetSdk 37
         versionCode 1
         versionName '0.2'
 
         externalNativeBuild {
             cmake {
-                arguments '-DANDROID_STL=c++_static', '-DANDROID_PLATFORM=android-21'
+                arguments '-DANDROID_STL=c++_static', '-DANDROID_PLATFORM=android-26'
                 if (abiFilter) {
                     abiFilters abiFilter
                 } else {
