@@ -13,7 +13,7 @@ Binaries: https://github.com/masscry/BadDMG/releases/download/v%v/space.deci.bad
 Builds:
   - versionName: '0.2'
     versionCode: 1
-    commit: 3c13009f585a7e057876ad9cce666d2b95c9cf86
+    commit: 8ecdc56dccbdb62c748ebf0dd26d8769bbc6bf8f
     subdir: android
     gradle:
       - yes
