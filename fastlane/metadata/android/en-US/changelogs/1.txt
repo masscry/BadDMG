@@ -1,0 +1,8 @@
+First F-Droid release.
+
+- Cycle-accurate Game Boy CPU emulation
+- PPU and 4-channel APU
+- MBC1, MBC2, MBC3 (RTC) and MBC5 cartridge support
+- Battery saves and RTC files named by ROM SHA-256
+- ROM library with touch controls and launcher shortcuts
+- Save export/import as ZIP

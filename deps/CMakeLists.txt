@@ -9,6 +9,7 @@ set(FETCHCONTENT_QUIET FALSE)
 FetchContent_Declare(
     argparse
     GIT_REPOSITORY https://github.com/p-ranav/argparse.git
+    GIT_TAG 7d093f8e1201db2dded2eee94de77665698ee9dc
     GIT_PROGRESS TRUE
     EXCLUDE_FROM_ALL
 )

@@ -1,0 +1,15 @@
+BadDMG is a Game Boy (DMG) emulator for Android with cycle-accurate CPU emulation, a PPU and a 4-channel APU.
+
+It does not include any games. Import your own .gb ROM files through the system file picker; they are copied into app-private storage and shown in a ROM library. Tap a game to play, and press Back to return to the library.
+
+Features:
+- Cycle-accurate CPU emulation
+- PPU rendering
+- 4-channel APU with resampled SDL3 audio
+- MBC1, MBC2, MBC3 (with RTC) and MBC5 cartridge support
+- Battery-backed SRAM saved next to the ROM, named by its SHA-256
+- MBC3 real-time clock persisted in a .rtc file
+- ROM library with touch controls and launcher shortcuts
+- Export and import cartridge saves as ZIP
+
+BadDMG has no ads, no tracking and does not request network access.

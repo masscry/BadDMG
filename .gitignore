@@ -6,5 +6,6 @@ compile_commands.json
 *.pgm
 *.png
 !android/app/src/main/res/**/*.png
+!fastlane/metadata/android/**/*.png
 .DS_Store
 pandoc/
