@@ -2,7 +2,8 @@
 
 The project is a regular Android Gradle project. The native code is built from
 the top-level `CMakeLists.txt`, which also fetches SDL3; on Android the `BadDMG`
-target becomes `libmain.so` and the Java `SDLActivity` starts it.
+target becomes `libmain.so` and the Java `SDLActivity` starts it. The app
+requires Android 8.0 (API 26) or newer.
 
 ## ROMs and saves
 

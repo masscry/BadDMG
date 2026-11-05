@@ -1,6 +1,5 @@
 package space.deci.baddmg;
 
-import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ContentResolver;
@@ -12,7 +11,6 @@ import android.content.pm.ShortcutManager;
 import android.database.Cursor;
 import android.graphics.drawable.Icon;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.provider.OpenableColumns;
 import android.util.Log;
@@ -395,16 +393,8 @@ public class RomPickerActivity extends Activity {
         return "rom-" + Integer.toHexString(rom.getAbsolutePath().hashCode());
     }
 
-    private void updateShortcuts() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N_MR1) {
-            return;
-        }
-        updateShortcutsApi25();
-    }
-
     /** Publishes the five most launched ROMs to the launcher's long-press menu. */
-    @TargetApi(Build.VERSION_CODES.N_MR1)
-    private void updateShortcutsApi25() {
+    private void updateShortcuts() {
         ShortcutManager manager = getSystemService(ShortcutManager.class);
         if (manager == null) {
             return;
@@ -453,7 +443,6 @@ public class RomPickerActivity extends Activity {
         prefs.edit().putInt(key, prefs.getInt(key, 0) + 1).apply();
     }
 
-    @TargetApi(Build.VERSION_CODES.N_MR1)
     private ShortcutInfo shortcutInfo(File rom, int rank) {
         return new ShortcutInfo.Builder(this, shortcutId(rom))
             .setShortLabel(saveName(rom))
@@ -466,14 +455,9 @@ public class RomPickerActivity extends Activity {
     }
 
     private void disableShortcuts(List<File> roms) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || roms.isEmpty()) {
+        if (roms.isEmpty()) {
             return;
         }
-        disableShortcutsApi26(roms);
-    }
-
-    @TargetApi(Build.VERSION_CODES.O)
-    private void disableShortcutsApi26(List<File> roms) {
         ShortcutManager manager = getSystemService(ShortcutManager.class);
         if (manager == null) {
             return;
@@ -490,15 +474,6 @@ public class RomPickerActivity extends Activity {
     }
 
     private void pinShortcut(File rom) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            Toast.makeText(this, R.string.shortcut_unsupported, Toast.LENGTH_SHORT).show();
-            return;
-        }
-        pinShortcutApi26(rom);
-    }
-
-    @TargetApi(Build.VERSION_CODES.O)
-    private void pinShortcutApi26(File rom) {
         ShortcutManager manager = getSystemService(ShortcutManager.class);
         if (manager == null) {
             Toast.makeText(this, R.string.shortcut_unsupported, Toast.LENGTH_SHORT).show();
@@ -883,39 +858,13 @@ public class RomPickerActivity extends Activity {
         if (path.indexOf('\0') >= 0) {
             throw new IOException("invalid URI path: " + uri);
         }
-        String normalized = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
-            ? normalizePathApi26(path)
-            : normalizePath(path);
-        if (normalized.startsWith("/data")) {
+        if (normalizePath(path).startsWith("/data")) {
             throw new IOException("refusing private URI: " + uri);
         }
     }
 
-    @TargetApi(Build.VERSION_CODES.O)
-    private static String normalizePathApi26(String path) {
-        return java.nio.file.Paths.get(path).normalize().toString();
-    }
-
     private static String normalizePath(String path) {
-        String[] parts = path.split("/");
-        StringBuilder out = new StringBuilder();
-        int skip = 0;
-        for (int i = parts.length - 1; i >= 0; --i) {
-            String part = parts[i];
-            if (part.isEmpty() || part.equals(".")) {
-                continue;
-            }
-            if (part.equals("..")) {
-                ++skip;
-                continue;
-            }
-            if (skip > 0) {
-                --skip;
-                continue;
-            }
-            out.insert(0, "/" + part);
-        }
-        return out.length() == 0 ? "/" : out.toString();
+        return java.nio.file.Paths.get(path).normalize().toString();
     }
 
     private static void copy(InputStream in, OutputStream out) throws IOException {
