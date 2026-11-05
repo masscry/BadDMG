@@ -505,6 +505,12 @@ public class RomPickerActivity extends Activity {
         File rtc = savePath(rom, ".rtc");
         try {
             checkContentUri(uri);
+            // Same guard as open(), next to the resolver call.
+            java.nio.file.Path normalized =
+                    java.nio.file.FileSystems.getDefault().getPath(uri.getPath()).normalize();
+            if (normalized.startsWith("/data")) {
+                throw new IOException("refusing private URI: " + uri);
+            }
             try (OutputStream raw = getContentResolver().openOutputStream(uri)) {
                 if (raw == null) {
                     throw new IOException("failed to open " + uri);
@@ -840,6 +846,13 @@ public class RomPickerActivity extends Activity {
 
     private InputStream open(Uri uri) throws IOException {
         checkContentUri(uri);
+        // Kept beside the resolver call: CodeQL only recognizes a path guard
+        // that locally dominates the sink, not one inside checkContentUri.
+        java.nio.file.Path normalized =
+                java.nio.file.FileSystems.getDefault().getPath(uri.getPath()).normalize();
+        if (normalized.startsWith("/data")) {
+            throw new IOException("refusing private URI: " + uri);
+        }
         InputStream in = getContentResolver().openInputStream(uri);
         if (in == null) {
             throw new IOException("failed to open " + uri);
@@ -852,19 +865,9 @@ public class RomPickerActivity extends Activity {
             throw new IOException("unsupported URI: " + uri);
         }
         String path = uri.getPath();
-        if (path == null) {
-            return;
-        }
-        if (path.indexOf('\0') >= 0) {
+        if (path == null || path.indexOf('\0') >= 0) {
             throw new IOException("invalid URI path: " + uri);
         }
-        if (normalizePath(path).startsWith("/data")) {
-            throw new IOException("refusing private URI: " + uri);
-        }
-    }
-
-    private static String normalizePath(String path) {
-        return java.nio.file.Paths.get(path).normalize().toString();
     }
 
     private static void copy(InputStream in, OutputStream out) throws IOException {
