@@ -2,7 +2,7 @@
 
 A GameBoy (DMG) emulator with cycle-accurate CPU emulation and SDL3 frontend.
 
-![BadDMG sample screenshots](docs/screenshots/head.png)
+![BadDMG running gejmboj.gb and Tobu Tobu Girl DX](docs/screenshots/head.png)
 
 ## Features
 
