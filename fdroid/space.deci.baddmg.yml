@@ -8,16 +8,19 @@ IssueTracker: https://github.com/masscry/BadDMG/issues
 
 RepoType: git
 Repo: https://github.com/masscry/BadDMG.git
+Binaries: https://github.com/masscry/BadDMG/releases/download/v%v/space.deci.baddmg_%c.apk
 
 Builds:
   - versionName: '0.2'
     versionCode: 1
-    commit: 3885303793060b0e657445b75756d07cbd66d2b5
+    commit: 3c13009f585a7e057876ad9cce666d2b95c9cf86
     subdir: android
     gradle:
       - yes
     output: app/build/outputs/apk/release/app-release-unsigned.apk
     ndk: 29.0.14206865
+
+AllowedAPKSigningKeys: 461701d0248283f967c12f2014f53381c16d17ab4e5252f2bea6303047de8400
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9.]+$
