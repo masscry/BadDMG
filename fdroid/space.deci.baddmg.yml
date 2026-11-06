@@ -13,7 +13,7 @@ Repo: https://github.com/masscry/BadDMG.git
 Binaries: https://github.com/masscry/BadDMG/releases/download/v%v/space.deci.baddmg_%c.apk
 
 Builds:
-  - versionName: '0.3.1'
+  - versionName: 0.3.1
     versionCode: 3
     commit: 234b5973250355656c091cda15c9698721db8f91
     subdir: android
@@ -33,5 +33,5 @@ AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9.]+$
 UpdateCheckData: 
   android/app/build.gradle|versionCode\s+(\d+)|android/app/build.gradle|versionName\s+'([^']+)'
-CurrentVersion: '0.3.1'
+CurrentVersion: 0.3.1
 CurrentVersionCode: 3
