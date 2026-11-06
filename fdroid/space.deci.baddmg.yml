@@ -31,6 +31,7 @@ AllowedAPKSigningKeys: 461701d0248283f967c12f2014f53381c16d17ab4e5252f2bea630304
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9.]+$
-UpdateCheckData: android/app/build.gradle|versionCode\s+(\d+)|android/app/build.gradle|versionName\s+'([^']+)'
+UpdateCheckData: 
+  android/app/build.gradle|versionCode\s+(\d+)|android/app/build.gradle|versionName\s+'([^']+)'
 CurrentVersion: '0.3'
 CurrentVersionCode: 2
