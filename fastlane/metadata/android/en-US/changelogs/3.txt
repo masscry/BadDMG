@@ -1,0 +1,1 @@
+Release builds are now minified with R8 and the x86_64 ABI was dropped, making the APK smaller.
