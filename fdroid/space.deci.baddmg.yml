@@ -21,6 +21,10 @@ Builds:
     gradle:
       - yes
     output: app/build/outputs/apk/release/app-release-unsigned.apk
+    scandelete:
+      - deps/SDL/Xcode/SDL/pkg-support/resources/SDL_DS_Store
+      - deps/r8brain/bench/Win64/r8bfreesrc.exe
+      - deps/r8brain/bench/Win64/rmscompare.exe
     ndk: 29.0.14206865
 
 AllowedAPKSigningKeys: 461701d0248283f967c12f2014f53381c16d17ab4e5252f2bea6303047de8400
