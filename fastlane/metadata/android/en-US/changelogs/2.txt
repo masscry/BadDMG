@@ -1,0 +1,1 @@
+Dependencies are now bundled as git submodules. No user-visible changes.

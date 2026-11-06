@@ -2,42 +2,9 @@ plugins {
     id 'com.android.application'
 }
 
-// SDL's Java glue ships in the SDL archive pinned in deps/CMakeLists.txt. Keep
-// it out of the source tree: fetch the archive and unpack it into the build
-// directory. Keep the URL and hash in sync with that file.
-def sdlArchiveUrl = 'https://github.com/libsdl-org/SDL/archive/32e9d379f62ed0f2f092c269967f557c307431e8.tar.gz'
-def sdlArchiveSha256 = 'ffa99dbe0dbd699cfd509983c1122dacc72e83dfaa1eadb28dd0dae518199292'
-def sdlArchive = layout.buildDirectory.file('tmp/sdl.tar.gz')
-def sdlJavaDir = layout.buildDirectory.dir('generated/sdl/java')
-
-def fetchSdlArchive = tasks.register('fetchSdlArchive') {
-    inputs.property('url', sdlArchiveUrl)
-    inputs.property('sha256', sdlArchiveSha256)
-    outputs.file(sdlArchive)
-    doLast {
-        def file = sdlArchive.get().asFile
-        if (!file.exists()) {
-            file.parentFile.mkdirs()
-            file.bytes = new URI(sdlArchiveUrl).toURL().bytes
-        }
-        def actual = java.security.MessageDigest.getInstance('SHA-256')
-            .digest(file.bytes).encodeHex().toString()
-        if (actual != sdlArchiveSha256) {
-            file.delete()
-            throw new GradleException("SDL archive checksum mismatch: ${actual}")
-        }
-    }
-}
-
-def extractSdlJava = tasks.register('extractSdlJava', Sync) {
-    dependsOn fetchSdlArchive
-    from(tarTree(sdlArchive)) {
-        include 'SDL-*/android-project/app/src/main/java/**'
-        eachFile { it.path = it.path.split('/').drop(6).join('/') }
-        includeEmptyDirs = false
-    }
-    into sdlJavaDir
-}
+// SDL's Java glue comes from the deps/SDL submodule, pinned by the parent
+// repository. Run `git submodule update --init --recursive` before building.
+def sdlJavaDir = file('../../deps/SDL/android-project/app/src/main/java')
 
 def abiFilter = project.findProperty('abi')
 
@@ -50,8 +17,8 @@ android {
         applicationId 'space.deci.baddmg'
         minSdk 26
         targetSdk 37
-        versionCode 1
-        versionName '0.2'
+        versionCode 2
+        versionName '0.3'
 
         externalNativeBuild {
             cmake {
@@ -86,7 +53,7 @@ android {
 
     sourceSets {
         main {
-            java.srcDir(sdlJavaDir.get().asFile)
+            java.srcDir(sdlJavaDir)
         }
     }
 
@@ -97,8 +64,4 @@ android {
 
 dependencies {
     testImplementation 'junit:junit:4.13.2'
-}
-
-tasks.named('preBuild').configure {
-    dependsOn extractSdlJava
 }

@@ -1,9 +1,10 @@
 # BadDMG Android port
 
 The project is a regular Android Gradle project. The native code is built from
-the top-level `CMakeLists.txt`, which also fetches SDL3; on Android the `BadDMG`
-target becomes `libmain.so` and the Java `SDLActivity` starts it. The app
-requires Android 8.0 (API 26) or newer.
+the top-level `CMakeLists.txt`, whose dependencies live in git submodules; on
+Android the `BadDMG` target becomes `libmain.so` and the Java `SDLActivity`
+starts it. The app requires Android 8.0 (API 26) or newer. Clone with
+`--recursive`, or run `git submodule update --init --recursive` once.
 
 ## ROMs and saves
 
@@ -24,12 +25,9 @@ ROMs as launcher shortcuts. `.gb` and `.gbc` files opened from a file manager
 
 ## SDL Java shim
 
-The `org.libsdl.app` classes are not tracked in this repository. `app/build.gradle`
-downloads the SDL archive pinned in `deps/CMakeLists.txt` (same commit), verifies
-its SHA-256 and unpacks `android-project/app/src/main/java` into
-`app/build/generated/sdl/java`, which is added to the Java source set. Bump the
-URL and hash in `app/build.gradle` together with the SDL pin; nothing needs to
-be refreshed by hand.
+The `org.libsdl.app` classes come from the `deps/SDL` submodule; its commit is
+recorded by the parent repository and `app/build.gradle` adds
+`android-project/app/src/main/java` to the Java source set directly.
 
 ## Release builds
 

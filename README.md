@@ -55,12 +55,14 @@ The project is organized into several directories and modules:
 Required dependencies:
 - CMake 3.22+
 - C++20 compiler
-- Git (for dependencies)
-- SDL3 (auto-fetched)
-- argparse (auto-fetched)
-- r8brain (auto-fetched, audio resampling)
+- Git (for submodules)
+- SDL3, argparse and r8brain as git submodules
 
 ```bash
+git clone --recursive <repo>
+# or, in an existing checkout:
+git submodule update --init --recursive
+
 mkdir build && cd build
 cmake ..
 cmake --build .

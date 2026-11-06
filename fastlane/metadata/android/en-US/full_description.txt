@@ -13,3 +13,5 @@ Features:
 - Export and import cartridge saves as ZIP
 
 BadDMG has no ads, no tracking and does not request network access.
+
+Screenshots feature Tobu Tobu Girl by Tangram Games, licensed CC BY 4.0.
