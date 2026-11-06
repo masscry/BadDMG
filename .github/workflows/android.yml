@@ -23,6 +23,11 @@ jobs:
       with:
         submodules: recursive
 
+    # SDL ships its own Gradle project that this build never uses; its wrapper
+    # JAR only trips setup-gradle's wrapper validation.
+    - name: Drop SDL's unused Gradle wrapper
+      run: rm -f deps/SDL/android-project/gradle/wrapper/gradle-wrapper.jar
+
     - name: Set up JDK
       uses: actions/setup-java@v4
       with:
