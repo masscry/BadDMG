@@ -74,6 +74,9 @@ public:
     auto title() const -> std::string_view;
     auto type() const -> Type;
 
+    // True while a rumble cartridge has its motor switched on.
+    bool rumble() const;
+
     // SHA-256 of the original cartridge contents, used to name save files.
     auto hash() const -> std::string_view {
         return _sha256;

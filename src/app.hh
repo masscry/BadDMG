@@ -8,6 +8,7 @@
 
 #include "fps-counter.hh"
 #include "input.hh"
+#include "rumble.hh"
 #include "sdl.hh"
 #include "wav.hh"
 
@@ -44,6 +45,7 @@ private:
     Renderer _renderer;
     Texture _tex;
     AudioStream _audio_stream;
+    Rumble _rumble;
 
     bdmg::Cpu _cpu;
     bdmg::SPBus _bus;

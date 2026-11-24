@@ -26,6 +26,10 @@ void ResourceDestructor::operator()(SDL_AudioStream* stream) {
     SDL_DestroyAudioStream(stream);
 }
 
+void ResourceDestructor::operator()(SDL_Haptic* haptic) {
+    SDL_CloseHaptic(haptic);
+}
+
 ITimer::ITimer(std::chrono::nanoseconds timeout) {
     auto callback = [](void *userdata, SDL_TimerID, Uint64 interval){
         auto& self = *static_cast<ITimer*>(userdata);

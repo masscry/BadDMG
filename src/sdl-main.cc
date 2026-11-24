@@ -15,6 +15,10 @@ SDL_AppResult SDL_AppInit(void **pApp, int argc, char* argv[]) {
         if (!SDL_InitSubSystem(SDL_INIT_GAMEPAD)) {
             SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "gamepad init failed: %s", SDL_GetError());
         }
+        // Optional: only used to vibrate for rumble cartridges.
+        if (!SDL_InitSubSystem(SDL_INIT_HAPTIC)) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "haptic init failed: %s", SDL_GetError());
+        }
         *pApp = new bdmg::Application(argc, argv);
         return SDL_APP_CONTINUE;
     } catch (const std::exception& exc) {
@@ -52,6 +56,6 @@ SDL_AppResult SDL_AppEvent(void *pApp, SDL_Event *event) {
 void SDL_AppQuit(void *pApp, SDL_AppResult result) {
     SDL_Log("Quit Application (result: %d)", static_cast<int>(result));
     delete reinterpret_cast<bdmg::Application*>(pApp);
-    SDL_QuitSubSystem(SDL_INIT_VIDEO|SDL_INIT_AUDIO|SDL_INIT_GAMEPAD);
+    SDL_QuitSubSystem(SDL_INIT_VIDEO|SDL_INIT_AUDIO|SDL_INIT_GAMEPAD|SDL_INIT_HAPTIC);
     SDL_Quit();
 }

@@ -18,6 +18,9 @@ public:
     virtual u8 read(u16 addr) const = 0;
     virtual void write(u16 addr, u8 data) = 0;
 
+    // True while the cartridge's rumble motor is switched on (MBC5+RUMBLE).
+    virtual bool rumble() const { return false; }
+
 protected:
     u8 read_rom(u16 bank, u16 offset) const;
     u8 read_ram(u16 offset) const;
@@ -102,9 +105,12 @@ public:
 
     u8 read(u16 addr) const final;
     void write(u16 addr, u8 data) final;
+    bool rumble() const final { return _motor; }
 
 private:
     bool _rumble;
+    // Rumble cartridges drive the motor with bit 3 of the RAM bank register.
+    bool _motor { false };
 };
 
 } // namespace bdmg

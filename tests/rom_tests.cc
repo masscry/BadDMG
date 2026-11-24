@@ -414,6 +414,51 @@ TEST(CartridgeSave, battery_ram_is_live_mapped) {
     fs::remove_all(dir);
 }
 
+TEST(CartridgeRumble, motor_follows_bit_3_of_the_ram_bank_register) {
+    const auto dir = fs::temp_directory_path() / "baddmg-cartridge-rumble-test";
+    fs::remove_all(dir);
+    fs::create_directories(dir);
+    const auto rom_path = make_test_rom(dir, Cartridge::Type::mbc5_rumble_ram_bat, 0x02);
+
+    auto cartridge = Cartridge::create(rom_path);
+    EXPECT_FALSE(cartridge->rumble());
+
+    cartridge->write_byte(0x4000, 0x08);
+    EXPECT_TRUE(cartridge->rumble());
+
+    // The low bits still select the RAM bank and leave the motor alone.
+    cartridge->write_byte(0x4000, 0x0B);
+    EXPECT_TRUE(cartridge->rumble());
+
+    cartridge->write_byte(0x4000, 0x03);
+    EXPECT_FALSE(cartridge->rumble());
+
+    cartridge.reset();
+    fs::remove_all(dir);
+}
+
+TEST(CartridgeRumble, cartridges_without_a_motor_never_report_rumble) {
+    const auto dir = fs::temp_directory_path() / "baddmg-cartridge-norumble-test";
+    fs::remove_all(dir);
+    fs::create_directories(dir);
+
+    {
+        // On plain MBC5 bit 3 is part of the RAM bank number, not a motor.
+        const auto rom_path = make_test_rom(dir, Cartridge::Type::mbc5_ram_bat, 0x02);
+        auto cartridge = Cartridge::create(rom_path);
+        cartridge->write_byte(0x4000, 0x08);
+        EXPECT_FALSE(cartridge->rumble());
+    }
+    {
+        const auto rom_path = make_test_rom(dir, Cartridge::Type::mbc1_ram_bat, 0x02);
+        auto cartridge = Cartridge::create(rom_path);
+        cartridge->write_byte(0x4000, 0x08);
+        EXPECT_FALSE(cartridge->rumble());
+    }
+
+    fs::remove_all(dir);
+}
+
 TEST(CartridgeSave, content_hash_names_the_save_file) {
     const auto dir = fs::temp_directory_path() / "baddmg-cartridge-save-hash-test";
     fs::remove_all(dir);

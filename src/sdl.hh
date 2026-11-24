@@ -10,6 +10,7 @@ struct SDL_Renderer;
 struct SDL_Surface;
 struct SDL_Texture;
 struct SDL_AudioStream;
+struct SDL_Haptic;
 using SDL_TimerID = uint32_t;
 
 namespace bdmg {
@@ -35,6 +36,7 @@ public:
     void operator()(SDL_Surface*);
     void operator()(SDL_Texture*);
     void operator()(SDL_AudioStream*);
+    void operator()(SDL_Haptic*);
 };
 
 using Window = std::unique_ptr<SDL_Window, ResourceDestructor>;
@@ -42,6 +44,7 @@ using Renderer = std::unique_ptr<SDL_Renderer, ResourceDestructor>;
 using Surface = std::unique_ptr<SDL_Surface, ResourceDestructor>;
 using Texture = std::unique_ptr<SDL_Texture, ResourceDestructor>;
 using AudioStream = std::unique_ptr<SDL_AudioStream, ResourceDestructor>;
+using Haptic = std::unique_ptr<SDL_Haptic, ResourceDestructor>;
 using Timer = std::unique_ptr<ITimer>;
 
 template<typename Func>
