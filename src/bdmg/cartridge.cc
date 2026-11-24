@@ -344,6 +344,10 @@ u8 Cartridge::read_byte(u16 addr) const {
     return _mapper->read(addr);
 }
 
+bool Cartridge::rumble() const {
+    return _mapper && _mapper->rumble();
+}
+
 void Cartridge::write_byte(u16 addr, u8 data) {
     _mapper->write(addr, data);
 }

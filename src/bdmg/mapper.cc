@@ -311,6 +311,9 @@ void Mbc5::write(u16 addr, u8 data) {
         _rom_bank = static_cast<u16>((_rom_bank & 0xFF) | ((data & 0x01) << 8));
     } else if (addr < 0x6000) {
         _ram_bank = data & (_rumble ? 0x07 : 0x0F);
+        if (_rumble) {
+            _motor = (data & 0x08) != 0;
+        }
     } else if (addr >= 0xA000 && addr < 0xC000) {
         write_ram(addr & 0x1FFF, data);
     }

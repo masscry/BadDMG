@@ -13,6 +13,7 @@ target_sources(BadDMG
         app.cc
         sdl-main.cc
         sdl.cc
+        rumble.cc
         wav.cc
         input.cc
         touch-controls.cc

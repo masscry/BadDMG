@@ -308,6 +308,7 @@ void Application::idle() {
         _cycles_since_frame += _cpu.step();
     }
     push_audio();
+    _rumble.update(_cartridge->rumble(), SDL_GetTicksNS());
 
     _counter.update();
     auto fps_title = std::format("FPS: {:4.2}", _counter.get());

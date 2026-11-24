@@ -1,6 +1,10 @@
 package space.deci.baddmg;
 
+import android.os.Build;
 import android.os.Bundle;
+import android.os.VibrationAttributes;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 
 import org.libsdl.app.SDLActivity;
 
@@ -34,6 +38,46 @@ public class MainActivity extends SDLActivity {
             sCurrent = null;
         }
         super.onDestroy();
+    }
+
+    // Rumble cartridges. SDL's haptic API vibrates with the generic touch
+    // usage, so the system scales it with the "touch feedback" setting.
+    // Android 14+ has a usage meant for game rumble; use it when possible.
+    // Both methods are called from native code (rumble.cc).
+    private Vibrator mRumbleVibrator;
+    private boolean mRumbleUnavailable = Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE;
+
+    /**
+     * Vibrates for durationMs with the physical emulation usage. Returns false
+     * when it cannot (old Android, no vibrator): the native side then falls
+     * back to SDL's haptic API.
+     */
+    public boolean rumblePulse(int durationMs) {
+        if (mRumbleUnavailable) {
+            return false;
+        }
+        try {
+            if (mRumbleVibrator == null) {
+                mRumbleVibrator = getSystemService(Vibrator.class);
+            }
+            if (mRumbleVibrator == null || !mRumbleVibrator.hasVibrator()) {
+                mRumbleUnavailable = true;
+                return false;
+            }
+            mRumbleVibrator.vibrate(
+                    VibrationEffect.createOneShot(durationMs, 255),
+                    VibrationAttributes.createForUsage(VibrationAttributes.USAGE_PHYSICAL_EMULATION));
+            return true;
+        } catch (RuntimeException | LinkageError e) {
+            mRumbleUnavailable = true;
+            return false;
+        }
+    }
+
+    public void rumbleStop() {
+        if (mRumbleVibrator != null) {
+            mRumbleVibrator.cancel();
+        }
     }
 
     @Override
